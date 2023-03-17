@@ -304,7 +304,8 @@ class Machine:
         self.server.get_event_loop().create_task(wrapper())
 
     async def _handle_script_service_request(self, web_request: WebRequest) -> str:
-        await self.do_service_action("start", "wifimode.service")
+        await self.run_gcode("CHANGE_WIFI_MODE")
+       # await self.do_service_action("start", "wifimode.service")
         return "Done!"
 
     async def _handle_service_request(self, web_request: WebRequest) -> str:
