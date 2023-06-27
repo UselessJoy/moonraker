@@ -7,7 +7,6 @@
 from __future__ import annotations
 from utils import SentinelClass
 from websockets import WebRequest, Subscribable
-
 # Annotation imports
 from typing import (
     TYPE_CHECKING,
@@ -36,7 +35,7 @@ STATUS_ENDPOINT = "objects/query"
 OBJ_LIST_ENDPOINT = "objects/list"
 REG_METHOD_ENDPOINT = "register_remote_method"
 SENTINEL = SentinelClass.get_instance()
-
+import logging
 class KlippyAPI(Subscribable):
     def __init__(self, config: ConfigHelper) -> None:
         self.server = config.get_server()
@@ -68,6 +67,19 @@ class KlippyAPI(Subscribable):
             "/printer/print/remove", ['POST'], self._gcode_remove)
         self.server.register_endpoint(
             "/printer/getwifimode", ['GET'], self.get_wifi_mode)
+        self.server.register_endpoint(
+            "/printer/get-neopixel-color", ['GET'], self._gcode_get_neopixel_color)
+        self.server.register_endpoint(
+            "/printer/getscrewimage", ['GET'], self.get_screw_image)
+        self.server.register_endpoint(
+            "/printer/setautooff", ['POST'], self._set_auto_off)
+        self.server.register_endpoint(
+            "/printer/offautooff", ['POST'], self._off_auto_off)
+        self.server.register_endpoint(
+            "/printer/setKlipperLang", ['POST'], self._set_klipper_lang)
+        
+        self.server.register_endpoint(
+            "/printer/setSafetyPrinting", ['POST'], self._set_safety_printing)
         ####    END NEW    ####
 
     async def _gcode_pause(self, web_request: WebRequest) -> str:
@@ -90,9 +102,45 @@ class KlippyAPI(Subscribable):
         return await self.do_restart("FIRMWARE_RESTART")
 
     ####      NEW      ####
+    async def _gcode_save_default_neopixel_color(self, web_request:WebRequest) -> str:
+        neopixel: str = web_request.get_str('neopixel')
+        return await self.save_default_neopixel_color(neopixel)
+    
+    async def _gcode_get_neopixel_color(self, web_request:WebRequest) -> str:
+        neopixel: str = web_request.get_str('neopixel')
+        return await self.get_neopixel_color(neopixel)
+    
     async def _gcode_rebuild(self, web_request: WebRequest) -> str:
         await self.do_rebuild("SDCARD_RUN_FILE")
+        
+    async def _set_auto_off(self, web_request: WebRequest) -> str:
+        await self.do_set_auto_off(web_request.get_boolean('autoOff_enable'))
 
+    async def do_set_auto_off(self, enable, default: Union[SentinelClass, _T] = SENTINEL) -> Any:
+        await self._send_klippy_request(
+            "autooff/set_auto_off", {'autoOff_enable': enable}, default)
+        
+    async def _set_klipper_lang(self, web_request: WebRequest) -> str:
+        await self.do_set_klipper_lang(web_request.get_str('lang'))
+
+    async def do_set_klipper_lang(self, lang, default: Union[SentinelClass, _T] = SENTINEL) -> Any:
+        await self._send_klippy_request(
+            "locale/set_lang", {'lang': lang}, default)
+    
+    async def _set_safety_printing(self, web_request: WebRequest) -> str:
+        await self.do_set_safety_printing(web_request.get_boolean('safety'))
+
+    async def do_set_safety_printing(self, safety, default: Union[SentinelClass, _T] = SENTINEL) -> Any:
+        await self._send_klippy_request(
+            "safety_printing/set_safety_printing", {'safety': safety}, default)
+
+    async def _off_auto_off(self, web_request: WebRequest) -> str:
+        await self.do_off_auto_off()
+            
+    async def do_off_auto_off(self, default: Union[SentinelClass, _T] = SENTINEL) -> Any:
+        await self._send_klippy_request(
+            "autooff/off_autooff", {}, default)
+        
     async def do_rebuild(
         self, gc: str, wait_klippy_started: bool = False
     ) -> str:
@@ -124,6 +172,18 @@ class KlippyAPI(Subscribable):
     async def get_wifi_mode(self, web_request:WebRequest) -> str:
         result = await self.run_gcode("GET_WIFI_MODE")
         return result
+    
+    
+    async def get_screw_image(self, web_request:WebRequest) -> str:
+        result = await self.run_gcode("GET_SCREW_IMAGE")
+        return result
+    
+    async def get_neopixel_color(self, neopixel: str) -> str:
+        return await self.run_gcode(f'GET_COLOR NEOPIXEL="{neopixel}"')
+    
+    async def save_default_neopixel_color(self, neopixel: str, r: float, g: float, b: float) -> str:
+        script = f'SAVE_DEFAULT_COLOR NEOPIXEL="{neopixel}" RED="{r}" GREEN="{g}" BLUE="{b}"'
+        return await self.run_gcode(script)
     ####    END NEW    ####
 
 
