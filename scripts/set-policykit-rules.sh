@@ -94,6 +94,9 @@ EOF
 create_dispatcher_rule() {
   DISPATHER_DIR="/etc/NetworkManager/dispatcher.d/"
   DISPATHER_RULE="${DISPATHER_DIR}/wlan-metric"
+  if [ -f $DISPATHER_RULE ]; then
+    report_status "rule already exist"
+  else
   sudo /bin/sh -c "cat > ${DISPATHER_RULE}" << EOF 
 #!/bin/sh
 #Change the metric of the default route only on interface wlan0
@@ -108,6 +111,7 @@ fi
 EOF
 
   sudo chmod 755 $DISPATHER_RULE
+  fi
 }
 
 
