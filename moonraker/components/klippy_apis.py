@@ -66,8 +66,6 @@ class KlippyAPI(Subscribable):
         self.server.register_endpoint(
             "/printer/print/remove", ['POST'], self._gcode_remove)
         self.server.register_endpoint(
-            "/printer/getwifimode", ['GET'], self.get_wifi_mode)
-        self.server.register_endpoint(
             "/printer/get-neopixel-color", ['GET'], self._gcode_get_neopixel_color)
         self.server.register_endpoint(
             "/printer/getscrewimage", ['GET'], self.get_screw_image)
@@ -80,6 +78,10 @@ class KlippyAPI(Subscribable):
         
         self.server.register_endpoint(
             "/printer/setSafetyPrinting", ['POST'], self._set_safety_printing)
+        
+        self.server.register_endpoint(
+            "/printer/setwifimode", ['POST'], self._set_wifi_mode)
+        
         ####    END NEW    ####
 
     async def _gcode_pause(self, web_request: WebRequest) -> str:
@@ -115,7 +117,14 @@ class KlippyAPI(Subscribable):
         
     async def _set_auto_off(self, web_request: WebRequest) -> str:
         await self.do_set_auto_off(web_request.get_boolean('autoOff_enable'))
+        
+    async def _set_wifi_mode(self, web_request: WebRequest) -> str:
+        await self.do_set_wifi_mode(web_request.get_str('wifi_mode'))
 
+    async def do_set_wifi_mode(self, wifi_mode, default: Union[SentinelClass, _T] = SENTINEL) -> Any:
+        await self._send_klippy_request(
+            "wifi_mode/set_wifi_mode", {'wifi_mode': wifi_mode}, default)
+    
     async def do_set_auto_off(self, enable, default: Union[SentinelClass, _T] = SENTINEL) -> Any:
         await self._send_klippy_request(
             "autooff/set_auto_off", {'autoOff_enable': enable}, default)
@@ -167,12 +176,7 @@ class KlippyAPI(Subscribable):
         try:
             await self.run_gcode(gc)
         except:
-            raise
-    
-    async def get_wifi_mode(self, web_request:WebRequest) -> str:
-        result = await self.run_gcode("GET_WIFI_MODE")
-        return result
-    
+            raise   
     
     async def get_screw_image(self, web_request:WebRequest) -> str:
         result = await self.run_gcode("GET_SCREW_IMAGE")

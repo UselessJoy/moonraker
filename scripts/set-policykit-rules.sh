@@ -30,6 +30,7 @@ add_polkit_legacy_rules()
     ACTIONS="${ACTIONS};org.freedesktop.login1.power-off-multiple-sessions"
     ACTIONS="${ACTIONS};org.freedesktop.login1.reboot"
     ACTIONS="${ACTIONS};org.freedesktop.login1.reboot-multiple-sessions"
+    ACTIONS="${ACTIONS};org.freedesktop.timedate1.set-time"
     ACTIONS="${ACTIONS};org.freedesktop.packagekit.*"
     sudo /bin/sh -c "cat > ${RULE_FILE}" << EOF
 [moonraker permissions]
@@ -72,6 +73,7 @@ polkit.addRule(function(action, subject) {
          action.id == "org.freedesktop.login1.power-off-multiple-sessions" ||
          action.id == "org.freedesktop.login1.reboot" ||
          action.id == "org.freedesktop.login1.reboot-multiple-sessions" ||
+         action.id == "org.freedesktop.timedate1.set-time"
          action.id.startsWith("org.freedesktop.packagekit.")) &&
         subject.user == "$USER") {
         // Only allow processes with the "moonraker-admin" supplementary group
@@ -88,6 +90,28 @@ polkit.addRule(function(action, subject) {
 });
 EOF
 }
+
+create_dispatcher_rule() {
+  DISPATHER_DIR="/etc/NetworkManager/dispatcher.d/"
+  DISPATHER_RULE="${DISPATHER_DIR}/wlan-metric"
+  sudo /bin/sh -c "cat > ${DISPATHER_RULE}" << EOF 
+#!/bin/sh
+#Change the metric of the default route only on interface wlan0
+if [ "$1" = "wlan0" ]; then
+        case "$2" in
+        up)
+                echo "now connection id is $CONNECTION_ID"
+                nmcli connection modify $CONNECTION_ID ipv4.route-metric 50
+                echo "successfully set metric for wifi-connection";;
+        esac
+fi
+EOF
+
+  sudo chmod 755 $DISPATHER_RULE
+}
+
+
+
 
 clear_polkit_rules()
 {
@@ -144,6 +168,7 @@ else
     set -e
     check_moonraker_service
     add_polkit_rules
+    create_dispatcher_rule
     if [ $DISABLE_SYSTEMCTL = "n" ]; then
         report_status "Restarting Moonraker..."
         sudo systemctl restart moonraker

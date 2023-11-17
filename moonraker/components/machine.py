@@ -133,9 +133,6 @@ class Machine:
         self.server.register_endpoint(
             "/machine/shutdown", ['POST'], self._handle_machine_request)
         self.server.register_endpoint(
-            "/machine/changewifimode", ['POST'], 
-            self._handle_script_service_request)
-        self.server.register_endpoint(
             "/machine/services/restart", ['POST'],
             self._handle_service_request)
         self.server.register_endpoint(
@@ -302,10 +299,6 @@ class Machine:
             except Exception:
                 pass
         self.server.get_event_loop().create_task(wrapper())
-
-    async def _handle_script_service_request(self, web_request: WebRequest) -> str:
-        await self.do_service_action("start", "wifimode.service")
-        return "Done!"
 
     async def _handle_service_request(self, web_request: WebRequest) -> str:
         name: str = web_request.get('service')
