@@ -3,7 +3,6 @@
 # Copyright (C) 2020 Eric Callahan <arksine.code@gmail.com>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
-
 from __future__ import annotations
 from utils import SentinelClass
 from websockets import WebRequest, Subscribable
@@ -35,7 +34,6 @@ STATUS_ENDPOINT = "objects/query"
 OBJ_LIST_ENDPOINT = "objects/list"
 REG_METHOD_ENDPOINT = "register_remote_method"
 SENTINEL = SentinelClass.get_instance()
-import logging
 class KlippyAPI(Subscribable):
     def __init__(self, config: ConfigHelper) -> None:
         self.server = config.get_server()
@@ -137,11 +135,11 @@ class KlippyAPI(Subscribable):
             "locale/set_lang", {'lang': lang}, default)
     
     async def _set_safety_printing(self, web_request: WebRequest) -> str:
-        await self.do_set_safety_printing(web_request.get_boolean('safety'))
+        await self.do_set_safety_printing(web_request.get_boolean('safety_enabled'))
 
     async def do_set_safety_printing(self, safety, default: Union[SentinelClass, _T] = SENTINEL) -> Any:
         await self._send_klippy_request(
-            "safety_printing/set_safety_printing", {'safety': safety}, default)
+            "safety_printing/set_safety_printing", {'safety_enabled': safety}, default)
 
     async def _off_auto_off(self, web_request: WebRequest) -> str:
         await self.do_off_auto_off()

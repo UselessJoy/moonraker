@@ -100,11 +100,11 @@ create_dispatcher_rule() {
   sudo /bin/sh -c "cat > ${DISPATHER_RULE}" << EOF 
 #!/bin/sh
 #Change the metric of the default route only on interface wlan0
-if [ "$1" = "wlan0" ]; then
-        case "$2" in
+if [ "\$1" = "wlan0" ]; then
+        case "\$2" in
         up)
-                echo "now connection id is $CONNECTION_ID"
-                nmcli connection modify $CONNECTION_ID ipv4.route-metric 50
+                echo "now connection id is \$CONNECTION_ID"
+                nmcli connection modify \$CONNECTION_ID ipv4.route-metric 50
                 echo "successfully set metric for wifi-connection";;
         esac
 fi
