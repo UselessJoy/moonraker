@@ -14,29 +14,34 @@ import sys
 import subprocess
 import asyncio
 import hashlib
-import json
 import shlex
 import re
 import struct
 import socket
+import enum
+import ipaddress
+from . import source_info
+from . import json_wrapper
 
 # Annotation imports
 from typing import (
     TYPE_CHECKING,
     List,
     Optional,
-    ClassVar,
+    Any,
     Tuple,
     Dict,
+    Union
 )
 
 if TYPE_CHECKING:
     from types import ModuleType
     from asyncio.trsock import TransportSocket
 
-MOONRAKER_PATH = str(pathlib.Path(__file__).parent.parent.resolve())
 SYS_MOD_PATHS = glob.glob("/usr/lib/python3*/dist-packages")
 SYS_MOD_PATHS += glob.glob("/usr/lib/python3*/site-packages")
+SYS_MOD_PATHS += glob.glob("/usr/lib/*-linux-gnu/python3*/site-packages")
+IPAddress = Union[ipaddress.IPv4Address, ipaddress.IPv6Address]
 
 class ServerError(Exception):
     def __init__(self, message: str, status_code: int = 400) -> None:
@@ -44,14 +49,8 @@ class ServerError(Exception):
         self.status_code = status_code
 
 
-class SentinelClass:
-    _instance: ClassVar[Optional[SentinelClass]] = None
-
-    @staticmethod
-    def get_instance() -> SentinelClass:
-        if SentinelClass._instance is None:
-            SentinelClass._instance = SentinelClass()
-        return SentinelClass._instance
+class Sentinel(enum.Enum):
+    MISSING = object()
 
 def _run_git_command(cmd: str) -> str:
     prog = shlex.split(cmd)
@@ -61,7 +60,9 @@ def _run_git_command(cmd: str) -> str:
     retcode = process.wait()
     if retcode == 0:
         return ret.strip().decode()
-    raise Exception(f"Failed to run git command: {cmd}")
+    raise Exception(
+        f"Failed to run git command '{cmd}': {err.decode(errors='ignore')}"
+    )
 
 def _retrieve_git_tag(source_path: str) -> str:
     cmd = f"git -C {source_path} rev-list --tags --max-count=1"
@@ -86,29 +87,82 @@ def retrieve_git_version(source_path: str) -> str:
     tag = _retrieve_git_tag(source_path)
     return f"t{tag}-g{ver}-shallow"
 
-def get_software_version() -> str:
-    version = "?"
-
+def get_repo_info(source_path: str) -> Dict[str, Any]:
+    repo_info: Dict[str, Any] = {
+        "software_version": "?",
+        "git_branch": "?",
+        "git_remote": "?",
+        "git_repo_url": "?",
+        "modified_files": [],
+        "unofficial_components": []
+    }
     try:
-        version = retrieve_git_version(MOONRAKER_PATH)
+        repo_info["software_version"] = retrieve_git_version(source_path)
+        cmd = f"git -C {source_path} branch --no-color"
+        branch_list = _run_git_command(cmd)
+        for line in branch_list.split("\n"):
+            if line[0] == "*":
+                repo_info["git_branch"] = line[1:].strip()
+                break
+        else:
+            return repo_info
+        if repo_info["git_branch"].startswith("(HEAD detached"):
+            parts = repo_info["git_branch"] .strip("()").split()[-1]
+            remote, _, _ = parts.partition("/")
+            if not remote:
+                return repo_info
+            repo_info["git_remote"] = remote
+        else:
+            branch = repo_info["git_branch"]
+            cmd = f"git -C {source_path} config --get branch.{branch}.remote"
+            repo_info["git_remote"] = _run_git_command(cmd)
+        cmd = f"git -C {source_path} remote get-url {repo_info['git_remote']}"
+        repo_info["git_repo_url"] = _run_git_command(cmd)
+        cmd = f"git -C {source_path} status --porcelain --ignored"
+        status = _run_git_command(cmd)
+        for line in status.split("\n"):
+            parts = line.strip().split(maxsplit=1)
+            if len(parts) != 2:
+                continue
+            if parts[0] == "M":
+                repo_info["modified_files"].append(parts[1])
+            elif (
+                parts[0] in ("??", "!!")
+                and parts[1].endswith(".py")
+                and parts[1].startswith("components")
+            ):
+                comp = parts[1].split("/", maxsplit=1)[-1]
+                repo_info["unofficial_components"].append(comp)
     except Exception:
-        vfile = pathlib.Path(os.path.join(
-            MOONRAKER_PATH, "moonraker/.version"))
-        if vfile.exists():
-            try:
-                version = vfile.read_text().strip()
-            except Exception:
-                logging.exception("Unable to extract version from file")
-                version = "?"
-    return version
+        logging.exception("Error Retreiving Git Repo Info")
+    return repo_info
 
+def get_software_info() -> Dict[str, Any]:
+    src_path = source_info.source_path()
+    if source_info.is_git_repo():
+        return get_repo_info(str(src_path))
+    pkg_ver = source_info.package_version()
+    if pkg_ver is not None:
+        return {"software_version": pkg_ver}
+    version: str = "?"
+    vfile = src_path.joinpath("moonraker/.version")
+    if vfile.exists():
+        try:
+            version = vfile.read_text().strip()
+        except Exception:
+            logging.exception("Unable to extract version from file")
+            version = "?"
+    return {"software_version": version}
 
-def hash_directory(dir_path: str,
-                   ignore_exts: List[str],
-                   ignore_dirs: List[str]
-                   ) -> str:
+def hash_directory(
+    dir_path: Union[str, pathlib.Path],
+    ignore_exts: List[str],
+    ignore_dirs: List[str]
+) -> str:
+    if isinstance(dir_path, str):
+        dir_path = pathlib.Path(dir_path)
     checksum = hashlib.blake2s()
-    if not os.path.exists(dir_path):
+    if not dir_path.exists():
         return ""
     for dpath, dnames, fnames in os.walk(dir_path):
         valid_dirs: List[str] = []
@@ -128,12 +182,18 @@ def hash_directory(dir_path: str,
                 pass
     return checksum.hexdigest()
 
-def verify_source(path: str = MOONRAKER_PATH) -> Optional[Tuple[str, bool]]:
-    rfile = pathlib.Path(os.path.join(path, ".release_info"))
+def verify_source(
+    path: Optional[Union[str, pathlib.Path]] = None
+) -> Optional[Tuple[str, bool]]:
+    if path is None:
+        path = source_info.source_path()
+    elif isinstance(path, str):
+        path = pathlib.Path(path)
+    rfile = path.joinpath(".release_info")
     if not rfile.exists():
         return None
     try:
-        rinfo = json.loads(rfile.read_text())
+        rinfo = json_wrapper.loads(rfile.read_text())
     except Exception:
         return None
     orig_chksum = rinfo['source_checksum']
@@ -143,6 +203,12 @@ def verify_source(path: str = MOONRAKER_PATH) -> Optional[Tuple[str, bool]]:
     return checksum, checksum == orig_chksum
 
 def load_system_module(name: str) -> ModuleType:
+    if not SYS_MOD_PATHS:
+        # no dist path detected, fall back to direct import attempt
+        try:
+            return importlib.import_module(name)
+        except ImportError as e:
+            raise ServerError(f"Unable to import module {name}") from e
     for module_path in SYS_MOD_PATHS:
         sys.path.insert(0, module_path)
         try:
@@ -150,10 +216,10 @@ def load_system_module(name: str) -> ModuleType:
         except ImportError as e:
             if not isinstance(e, ModuleNotFoundError):
                 logging.exception(f"Failed to load {name} module")
-            sys.path.pop(0)
         else:
-            sys.path.pop(0)
             break
+        finally:
+            sys.path.pop(0)
     else:
         raise ServerError(f"Unable to import module {name}")
     return module
@@ -187,3 +253,23 @@ def get_unix_peer_credentials(
         "user_id": uid,
         "group_id": gid
     }
+
+def pretty_print_time(seconds: int) -> str:
+    if seconds == 0:
+        return "0 Seconds"
+    fmt_list: List[str] = []
+    times: Dict[str, int] = {}
+    times["Day"], seconds = divmod(seconds, 86400)
+    times["Hour"], seconds = divmod(seconds, 3600)
+    times["Minute"], times["Second"] = divmod(seconds, 60)
+    for ident, val in times.items():
+        if val == 0:
+            continue
+        fmt_list.append(f"{val} {ident}" if val == 1 else f"{val} {ident}s")
+    return ", ".join(fmt_list)
+
+def parse_ip_address(address: str) -> Optional[IPAddress]:
+    try:
+        return ipaddress.ip_address(address)
+    except Exception:
+        return None

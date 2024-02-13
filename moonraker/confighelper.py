@@ -14,8 +14,8 @@ import threading
 import copy
 import logging
 from io import StringIO
-from utils import SentinelClass
-from components.template import JinjaTemplate
+from .utils import Sentinel
+from .common import RenderableTemplate
 
 # Annotation imports
 from typing import (
@@ -32,17 +32,22 @@ from typing import (
     Dict,
     List,
     Type,
+    TextIO
 )
 if TYPE_CHECKING:
-    from moonraker import Server
-    from components.gpio import GpioFactory, GpioOutputPin
-    from components.template import TemplateFactory
-    from io import TextIOWrapper
+    from .server import Server
+    from .components.gpio import (
+        GpioFactory,
+        GpioOutputPin,
+        GpioEvent,
+        GpioEventCallback
+    )
+    from .components.template import TemplateFactory
     _T = TypeVar("_T")
     ConfigVal = Union[None, int, float, bool, str, dict, list]
 
-SENTINEL = SentinelClass.get_instance()
 DOCS_URL = "https://moonraker.readthedocs.io/en/latest"
+CFG_ERROR_KEY = "__CONFIG_ERROR__"
 
 class ConfigError(Exception):
     pass
@@ -120,7 +125,7 @@ class ConfigHelper:
     def _get_option(self,
                     func: Callable[..., Any],
                     option: str,
-                    default: Union[SentinelClass, _T],
+                    default: Union[Sentinel, _T],
                     above: Optional[Union[int, float]] = None,
                     below: Optional[Union[int, float]] = None,
                     minval: Optional[Union[int, float]] = None,
@@ -138,14 +143,17 @@ class ConfigHelper:
         try:
             val = func(section, option)
         except (configparser.NoOptionError, configparser.NoSectionError) as e:
-            if isinstance(default, SentinelClass):
+            if default is Sentinel.MISSING:
+                self.parsed[self.section][CFG_ERROR_KEY] = True
                 raise ConfigError(str(e)) from None
             val = default
             section = self.section
-        except Exception:
+        except Exception as e:
+            self.parsed[self.section][CFG_ERROR_KEY] = True
             raise ConfigError(
-                f"Error parsing option ({option}) from "
-                f"section [{self.section}]")
+                f"[{self.section}]: Option '{option}' encountered the following "
+                f"error while parsing: {e}"
+            ) from e
         else:
             if deprecate:
                 self.server.add_warning(
@@ -198,7 +206,7 @@ class ConfigHelper:
 
     def get(self,
             option: str,
-            default: Union[SentinelClass, _T] = SENTINEL,
+            default: Union[Sentinel, _T] = Sentinel.MISSING,
             deprecate: bool = False
             ) -> Union[str, _T]:
         return self._get_option(
@@ -207,7 +215,7 @@ class ConfigHelper:
 
     def getint(self,
                option: str,
-               default: Union[SentinelClass, _T] = SENTINEL,
+               default: Union[Sentinel, _T] = Sentinel.MISSING,
                above: Optional[int] = None,
                below: Optional[int] = None,
                minval: Optional[int] = None,
@@ -220,7 +228,7 @@ class ConfigHelper:
 
     def getboolean(self,
                    option: str,
-                   default: Union[SentinelClass, _T] = SENTINEL,
+                   default: Union[Sentinel, _T] = Sentinel.MISSING,
                    deprecate: bool = False
                    ) -> Union[bool, _T]:
         return self._get_option(
@@ -229,7 +237,7 @@ class ConfigHelper:
 
     def getfloat(self,
                  option: str,
-                 default: Union[SentinelClass, _T] = SENTINEL,
+                 default: Union[Sentinel, _T] = Sentinel.MISSING,
                  above: Optional[float] = None,
                  below: Optional[float] = None,
                  minval: Optional[float] = None,
@@ -242,7 +250,7 @@ class ConfigHelper:
 
     def getlists(self,
                  option: str,
-                 default: Union[SentinelClass, _T] = SENTINEL,
+                 default: Union[Sentinel, _T] = Sentinel.MISSING,
                  list_type: Type = str,
                  separators: Tuple[Optional[str], ...] = ('\n',),
                  count: Optional[Tuple[Optional[int], ...]] = None,
@@ -253,7 +261,7 @@ class ConfigHelper:
                 f"Option '{option}' in section "
                 f"[{self.section}]: length of 'count' argument must ",
                 "match length of 'separators' argument")
-        else:
+        elif count is None:
             count = tuple(None for _ in range(len(separators)))
 
         def list_parser(value: str,
@@ -292,7 +300,7 @@ class ConfigHelper:
 
     def getlist(self,
                 option: str,
-                default: Union[SentinelClass, _T] = SENTINEL,
+                default: Union[Sentinel, _T] = Sentinel.MISSING,
                 separator: Optional[str] = '\n',
                 count: Optional[int] = None,
                 deprecate: bool = False
@@ -302,7 +310,7 @@ class ConfigHelper:
 
     def getintlist(self,
                    option: str,
-                   default: Union[SentinelClass, _T] = SENTINEL,
+                   default: Union[Sentinel, _T] = Sentinel.MISSING,
                    separator: Optional[str] = '\n',
                    count: Optional[int] = None,
                    deprecate: bool = False
@@ -312,7 +320,7 @@ class ConfigHelper:
 
     def getfloatlist(self,
                      option: str,
-                     default: Union[SentinelClass, _T] = SENTINEL,
+                     default: Union[Sentinel, _T] = Sentinel.MISSING,
                      separator: Optional[str] = '\n',
                      count: Optional[int] = None,
                      deprecate: bool = False
@@ -322,7 +330,7 @@ class ConfigHelper:
 
     def getdict(self,
                 option: str,
-                default: Union[SentinelClass, _T] = SENTINEL,
+                default: Union[Sentinel, _T] = Sentinel.MISSING,
                 separators: Tuple[Optional[str], Optional[str]] = ('\n', '='),
                 dict_type: Type = str,
                 allow_empty_fields: bool = False,
@@ -356,12 +364,12 @@ class ConfigHelper:
 
     def getgpioout(self,
                    option: str,
-                   default: Union[SentinelClass, _T] = SENTINEL,
+                   default: Union[Sentinel, _T] = Sentinel.MISSING,
                    initial_value: int = 0,
                    deprecate: bool = False
                    ) -> Union[GpioOutputPin, _T]:
         try:
-            gpio: GpioFactory = self.server.load_component(self, 'gpio')
+            gpio: GpioFactory = self.server.load_component(self, "gpio")
         except Exception:
             raise ConfigError(
                 f"Section [{self.section}], option '{option}', "
@@ -373,33 +381,54 @@ class ConfigHelper:
         return self._get_option(getgpio_wrapper, option, default,
                                 deprecate=deprecate)
 
-    def gettemplate(self,
-                    option: str,
-                    default: Union[SentinelClass, _T] = SENTINEL,
-                    is_async: bool = False,
-                    deprecate: bool = False
-                    ) -> Union[JinjaTemplate, _T]:
+    def getgpioevent(
+        self,
+        option: str,
+        event_callback: GpioEventCallback,
+        default: Union[Sentinel, _T] = Sentinel.MISSING,
+        deprecate: bool = False
+    ) -> Union[GpioEvent, _T]:
         try:
-            template: TemplateFactory
-            template = self.server.load_component(self, 'template')
+            gpio: GpioFactory = self.server.load_component(self, "gpio")
         except Exception:
             raise ConfigError(
                 f"Section [{self.section}], option '{option}', "
-                "Template Component not available")
+                "GPIO Component not available"
+            )
 
-        def gettemplate_wrapper(sec: str, opt: str) -> JinjaTemplate:
+        def getgpioevent_wrapper(sec: str, opt: str) -> GpioEvent:
+            val = self.config.get(sec, opt)
+            return gpio.register_gpio_event(val, event_callback)
+        return self._get_option(
+            getgpioevent_wrapper, option, default, deprecate=deprecate
+        )
+
+    def gettemplate(self,
+                    option: str,
+                    default: Union[Sentinel, _T] = Sentinel.MISSING,
+                    is_async: bool = False,
+                    deprecate: bool = False
+                    ) -> Union[RenderableTemplate, _T]:
+        try:
+            template: TemplateFactory = self.server.load_component(self, 'template')
+        except Exception:
+            raise ConfigError(
+                f"Section [{self.section}], option '{option}': "
+                "Failed to load 'template' component."
+            )
+
+        def gettemplate_wrapper(sec: str, opt: str) -> RenderableTemplate:
             val = self.config.get(sec, opt)
             return template.create_template(val.strip(), is_async)
-
         return self._get_option(gettemplate_wrapper, option, default,
                                 deprecate=deprecate)
 
     def load_template(self,
                       option: str,
-                      default: Union[SentinelClass, str] = SENTINEL,
+                      default: Union[Sentinel, str] = Sentinel.MISSING,
                       is_async: bool = False,
                       deprecate: bool = False
-                      ) -> JinjaTemplate:
+                      ) -> RenderableTemplate:
         val = self.gettemplate(option, default, is_async, deprecate)
         if isinstance(val, str):
             template: TemplateFactory
@@ -409,11 +438,11 @@ class ConfigHelper:
 
     def getpath(self,
                 option: str,
-                default: Union[SentinelClass, _T] = SENTINEL,
+                default: Union[Sentinel, _T] = Sentinel.MISSING,
                 deprecate: bool = False
                 ) -> Union[pathlib.Path, _T]:
         val = self.gettemplate(option, default, deprecate=deprecate)
-        if isinstance(val, JinjaTemplate):
+        if isinstance(val, RenderableTemplate):
             ctx = {"data_path": self.server.get_app_args()["data_path"]}
             strpath = val.render(ctx)
             return pathlib.Path(strpath).expanduser().resolve()
@@ -421,7 +450,7 @@ class ConfigHelper:
 
     def read_supplemental_dict(self, obj: Dict[str, Any]) -> ConfigHelper:
         if not obj:
-            raise ConfigError(f"Cannot ready Empty Dict")
+            raise ConfigError("Cannot ready Empty Dict")
         source = DictSourceWrapper()
         source.read_dict(obj)
         sections = source.config.sections()
@@ -456,9 +485,14 @@ class ConfigHelper:
                     f"Unparsed config section [{sect}] detected.  This "
                     "may be the result of a component that failed to "
                     "load.  In the future this will result in a startup "
-                    "error.")
+                    "error."
+                )
                 continue
             parsed_opts = self.parsed[sect]
+            if CFG_ERROR_KEY in parsed_opts:
+                # Skip validation for sections that have encountered an error,
+                # as this will always result in unparsed options.
+                continue
             for opt, val in self.config.items(sect):
                 if opt not in parsed_opts:
                     self.server.add_warning(
@@ -466,13 +500,14 @@ class ConfigHelper:
                         f"section [{sect}].  This may be an option no longer "
                         "available or could be the result of a module that "
                         "failed to load.  In the future this will result "
-                        "in a startup error.")
+                        "in a startup error."
+                    )
 
-    def create_backup(self):
+    def create_backup(self) -> None:
         cfg_path = self.server.get_app_args()["config_file"]
         cfg = pathlib.Path(cfg_path).expanduser().resolve()
         backup = cfg.parent.joinpath(f".{cfg.name}.bkp")
-        backup_fp: Optional[TextIOWrapper] = None
+        backup_fp: Optional[TextIO] = None
         try:
             if backup.exists():
                 cfg_mtime: int = 0
@@ -953,13 +988,12 @@ class FileSourceWrapper(ConfigSourceWrapper):
                     # ignore lines that contain only whitespace/comments
                     continue
                 line = line.expandtabs(tabsize=4)
-                # Remove inline comments
-                for prefix in "#;":
-                    icmt = line.find(prefix)
-                    if icmt > 0 and line[icmt-1] != "\\":
-                        # inline comment, remove it
-                        line = line[:icmt]
-                        break
+                # Search for and remove inline comments
+                cmt_match = re.search(r" +[#;]", line)
+                if cmt_match is not None:
+                    line = line[:cmt_match.start()]
+                # Unescape prefix chars that are preceded by whitespace
+                line = re.sub(r" \\(#|;)", r" \1", line)
                 line_indent = len(line) - len(line.lstrip())
                 if opt_indent != -1 and line_indent > opt_indent:
                     # Multi-line value, append to buffer and resume parsing

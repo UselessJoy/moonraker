@@ -30,6 +30,8 @@ add_polkit_legacy_rules()
     ACTIONS="${ACTIONS};org.freedesktop.login1.power-off-multiple-sessions"
     ACTIONS="${ACTIONS};org.freedesktop.login1.reboot"
     ACTIONS="${ACTIONS};org.freedesktop.login1.reboot-multiple-sessions"
+    ACTIONS="${ACTIONS};org.freedesktop.login1.halt"
+    ACTIONS="${ACTIONS};org.freedesktop.login1.halt-multiple-sessions"
     ACTIONS="${ACTIONS};org.freedesktop.timedate1.set-time"
     ACTIONS="${ACTIONS};org.freedesktop.packagekit.*"
     sudo /bin/sh -c "cat > ${RULE_FILE}" << EOF
@@ -73,6 +75,8 @@ polkit.addRule(function(action, subject) {
          action.id == "org.freedesktop.login1.power-off-multiple-sessions" ||
          action.id == "org.freedesktop.login1.reboot" ||
          action.id == "org.freedesktop.login1.reboot-multiple-sessions" ||
+         action.id == "org.freedesktop.login1.halt" ||
+         action.id == "org.freedesktop.login1.halt-multiple-sessions" ||
          action.id == "org.freedesktop.timedate1.set-time"
          action.id.startsWith("org.freedesktop.packagekit.")) &&
         subject.user == "$USER") {

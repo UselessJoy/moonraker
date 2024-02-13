@@ -6,16 +6,16 @@
 
 from __future__ import annotations
 import pathlib
-import json
 import struct
 import operator
 import logging
 from asyncio import Future, Task
-from io import BytesIO
 from functools import reduce
 from threading import Lock as ThreadLock
 import lmdb
-from utils import SentinelClass, ServerError
+from ..utils import Sentinel, ServerError
+from ..utils import json_wrapper as jsonw
+from ..common import RequestType
 
 # Annotation imports
 from typing import (
@@ -33,8 +33,8 @@ from typing import (
     cast
 )
 if TYPE_CHECKING:
-    from confighelper import ConfigHelper
-    from websockets import WebRequest
+    from ..confighelper import ConfigHelper
+    from ..common import WebRequest
     DBRecord = Union[int, float, bool, str, List[Any], Dict[str, Any]]
     DBType = Optional[DBRecord]
     _T = TypeVar("_T")
@@ -48,8 +48,8 @@ RECORD_ENCODE_FUNCS = {
     float: lambda x: b"d" + struct.pack("d", x),
     bool: lambda x: b"?" + struct.pack("?", x),
     str: lambda x: b"s" + x.encode(),
-    list: lambda x: json.dumps(x).encode(),
-    dict: lambda x: json.dumps(x).encode(),
+    list: lambda x: jsonw.dumps(x),
+    dict: lambda x: jsonw.dumps(x),
 }
 
 RECORD_DECODE_FUNCS = {
@@ -57,11 +57,9 @@ RECORD_DECODE_FUNCS = {
     ord("d"): lambda x: struct.unpack("d", x[1:])[0],
     ord("?"): lambda x: struct.unpack("?", x[1:])[0],
     ord("s"): lambda x: bytes(x[1:]).decode(),
-    ord("["): lambda x: json.loads(bytes(x)),
-    ord("{"): lambda x: json.loads(bytes(x)),
+    ord("["): lambda x: jsonw.loads(bytes(x)),
+    ord("{"): lambda x: jsonw.loads(bytes(x)),
 }
-
-SENTINEL = SentinelClass.get_instance()
 
 def getitem_with_default(item: Dict, field: Any) -> Any:
     if not isinstance(item, Dict):
@@ -100,8 +98,9 @@ class MoonrakerDatabase:
         if not db_path.is_dir():
             db_path.mkdir()
         self.database_path = str(db_path)
-        self.lmdb_env = lmdb.open(self.database_path, map_size=MAX_DB_SIZE,
-                                  max_dbs=MAX_NAMESPACES)
+        self.lmdb_env: lmdb.Environment = lmdb.open(
+            self.database_path, map_size=MAX_DB_SIZE, max_dbs=MAX_NAMESPACES
+        )
         with self.lmdb_env.begin(write=True, buffers=True) as txn:
             # lookup existing namespaces
             with txn.cursor() as cursor:
@@ -169,7 +168,9 @@ class MoonrakerDatabase:
         # Track unsafe shutdowns
         unsafe_shutdowns: int = self.get_item(
             "moonraker", "database.unsafe_shutdowns", 0).result()
-        msg = f"Unsafe Shutdown Count: {unsafe_shutdowns}"
+        msg = f"\nDatabase Versions: pylmdb = {lmdb.__version__},"
+        msg += f" lmdb = {lmdb.version()}"
+        msg += f"\nUnsafe Shutdown Count: {unsafe_shutdowns}"
         self.server.add_log_rollover_item("database", msg)
 
         # Increment unsafe shutdown counter.  This will be reset if
@@ -177,15 +178,17 @@ class MoonrakerDatabase:
         self.insert_item("moonraker", "database.unsafe_shutdowns",
                          unsafe_shutdowns + 1)
         self.server.register_endpoint(
-            "/server/database/list", ['GET'], self._handle_list_request)
+            "/server/database/list", RequestType.GET, self._handle_list_request
+        )
         self.server.register_endpoint(
-            "/server/database/item", ["GET", "POST", "DELETE"],
-            self._handle_item_request)
+            "/server/database/item", RequestType.all(), self._handle_item_request
+        )
         self.server.register_debug_endpoint(
-            "/debug/database/list", ['GET'], self._handle_list_request)
+            "/debug/database/list", RequestType.GET, self._handle_list_request
+        )
         self.server.register_debug_endpoint(
-            "/debug/database/item", ["GET", "POST", "DELETE"],
-            self._handle_item_request)
+            "/debug/database/item", RequestType.all(), self._handle_item_request
+        )
 
     def get_database_path(self) -> str:
         return self.database_path
@@ -346,14 +349,14 @@ class MoonrakerDatabase:
     def get_item(self,
                  namespace: str,
                  key: Optional[Union[List[str], str]] = None,
-                 default: Any = SENTINEL
+                 default: Any = Sentinel.MISSING
                  ) -> Future[Any]:
         return self._run_command(self._get_impl, namespace, key, default)
 
     def _get_impl(self,
                   namespace: str,
                   key: Optional[Union[List[str], str]] = None,
-                  default: Any = SENTINEL
+                  default: Any = Sentinel.MISSING
                   ) -> Any:
         try:
             if key is None:
@@ -363,7 +366,7 @@ class MoonrakerDatabase:
             val = reduce(operator.getitem,  # type: ignore
                          key_list[1:], ns)
         except Exception as e:
-            if not isinstance(default, SentinelClass):
+            if default is not Sentinel.MISSING:
                 return default
             if isinstance(e, self.server.error):
                 raise
@@ -452,12 +455,20 @@ class MoonrakerDatabase:
                         ) -> Dict[str, Any]:
         db = self._get_db(namespace)
         result: Dict[str, Any] = {}
-        encoded_keys: List[bytes] = [k.encode() for k in keys]
         with self.lmdb_env.begin(buffers=True, db=db) as txn:
             with txn.cursor() as cursor:
-                vals = cursor.getmulti(encoded_keys)
-                result = {bytes(k).decode(): self._decode_value(v)
-                          for k, v in vals}
+                if hasattr(cursor, "getmulti"):
+                    encoded_keys: List[bytes] = [k.encode() for k in keys]
+                    vals = cursor.getmulti(encoded_keys)
+                    result = {
+                        bytes(k).decode(): self._decode_value(v) for k, v in vals
+                    }
+                else:
+                    for key in keys:
+                        value = txn.get(key.encode())
+                        if value is None:
+                            continue
+                        result[key] = self._decode_value(value)
         return result
 
     # *** Namespace level operations***
@@ -738,7 +749,7 @@ class MoonrakerDatabase:
     async def _handle_item_request(self,
                                    web_request: WebRequest
                                    ) -> Dict[str, Any]:
-        action = web_request.get_action()
+        req_type = web_request.get_request_type()
         is_debug = web_request.get_endpoint().startswith("/debug/")
         namespace = web_request.get_str("namespace")
         if namespace in self.forbidden_namespaces and not is_debug:
@@ -747,7 +758,7 @@ class MoonrakerDatabase:
                 " is forbidden", 403)
         key: Any
         valid_types: Tuple[type, ...]
-        if action != "GET":
+        if req_type != RequestType.GET:
             if namespace in self.protected_namespaces and not is_debug:
                 raise self.server.error(
                     f"Write access to namespace '{namespace}'"
@@ -761,16 +772,17 @@ class MoonrakerDatabase:
             raise self.server.error(
                 "Value for argument 'key' is an invalid type: "
                 f"{type(key).__name__}")
-        if action == "GET":
+        if req_type == RequestType.GET:
             val = await self.get_item(namespace, key)
-        elif action == "POST":
+        elif req_type == RequestType.POST:
             val = web_request.get("value")
             await self.insert_item(namespace, key, val)
-        elif action == "DELETE":
+        elif req_type == RequestType.DELETE:
             val = await self.delete_item(namespace, key, drop_empty_db=True)
 
         if is_debug:
-            self.debug_counter[action.lower()] += 1
+            name = req_type.name or str(req_type).split(".", 1)[-1]
+            self.debug_counter[name.lower()] += 1
             await self.insert_item(
                 "moonraker", "database.debug_counter", self.debug_counter
             )
@@ -875,7 +887,7 @@ class NamespaceWrapper:
         return self.db._get_namespace(self.namespace)
 
     def __getitem__(self, key: Union[List[str], str]) -> Future[Any]:
-        return self.get(key, default=SENTINEL)
+        return self.get(key, default=Sentinel.MISSING)
 
     def __setitem__(self,
                     key: Union[List[str], str],
@@ -908,13 +920,13 @@ class NamespaceWrapper:
 
     def pop(self,
             key: Union[List[str], str],
-            default: Any = SENTINEL
+            default: Any = Sentinel.MISSING
             ) -> Union[Future[Any], Task[Any]]:
         if not self.server.is_running():
             try:
                 val = self.delete(key).result()
             except Exception:
-                if isinstance(default, SentinelClass):
+                if default is Sentinel.MISSING:
                     raise
                 val = default
             fut = self.eventloop.create_future()
@@ -925,7 +937,7 @@ class NamespaceWrapper:
             try:
                 val = await self.delete(key)
             except Exception:
-                if isinstance(default, SentinelClass):
+                if default is Sentinel.MISSING:
                     raise
                 val = default
             return val

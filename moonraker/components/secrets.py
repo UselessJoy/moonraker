@@ -7,7 +7,7 @@ from __future__ import annotations
 import pathlib
 import logging
 import configparser
-import json
+from ..utils import json_wrapper as jsonw
 from typing import (
     TYPE_CHECKING,
     Dict,
@@ -15,13 +15,11 @@ from typing import (
     Any
 )
 if TYPE_CHECKING:
-    from confighelper import ConfigHelper
-    from .file_manager.file_manager import FileManager
+    from ..confighelper import ConfigHelper
 
 class Secrets:
     def __init__(self, config: ConfigHelper) -> None:
         server = config.get_server()
-        self.secrets_file: Optional[pathlib.Path] = None
         path: Optional[str] = config.get("secrets_path", None, deprecate=True)
         app_args = server.get_app_args()
         data_path = app_args["data_path"]
@@ -30,10 +28,8 @@ class Secrets:
             fpath = pathlib.Path(path).expanduser().resolve()
         self.type = "invalid"
         self.values: Dict[str, Any] = {}
-        fm: FileManager = server.lookup_component("file_manager")
-        fm.add_reserved_path("secrets", fpath, False)
+        self.secrets_file = fpath
         if fpath.is_file():
-            self.secrets_file = fpath
             data = self.secrets_file.read_text()
             vals = self._parse_json(data)
             if vals is not None:
@@ -62,6 +58,9 @@ class Secrets:
         else:
             logging.debug(
                 "[secrets]: Option `secrets_path` not supplied")
+    
+    def get_secrets_file(self) -> pathlib.Path:
+            return self.secrets_file
 
     def _parse_ini(self, data: str) -> Optional[Dict[str, Any]]:
         try:
@@ -73,8 +72,8 @@ class Secrets:
 
     def _parse_json(self, data: str) -> Optional[Dict[str, Any]]:
         try:
-            return json.loads(data)
-        except json.JSONDecodeError:
+            return jsonw.loads(data)
+        except jsonw.JSONDecodeError:
             return None
 
     def get_type(self) -> str:
