@@ -48,7 +48,6 @@ if TYPE_CHECKING:
     from .shell_command import ShellCommandFactory as SCMDComp
     from .database import MoonrakerDatabase
     from .file_manager.file_manager import FileManager
-    from .authorization import Authorization
     from .announcements import Announcements
     from .proc_stats import ProcStats
     from .dbus_manager import DbusManager
@@ -86,7 +85,6 @@ SERVICE_PROPERTIES = [
     "ExecStart", "WorkingDirectory", "FragmentPath", "Description",
     "User"
 ]
-
 USB_IDS_URL = "http://www.linux-usb.org/usb.ids"
 
 class Machine:
@@ -172,6 +170,7 @@ class Machine:
         self.server.register_endpoint(
             "/machine/peripherals/video", RequestType.GET, self._handle_video_request
         )
+
         self.server.register_notification("machine:service_state_changed")
         self.server.register_notification("machine:sudo_alert")
 
@@ -243,7 +242,7 @@ class Machine:
                 "libcamera", "Module libcamera unavailble, import failed"
             )
             return None
-    
+
     @property
     def public_ip(self) -> str:
         return self._public_ip
@@ -455,10 +454,10 @@ class Machine:
         return {
             "can_uuids": await self.query_can_uuids(interface)
         }
-    
+
     async def _handle_video_request(self, web_request: WebRequest) -> Dict[str, Any]:
         return await self.detect_video_devices()
-        
+
     def get_system_info(self) -> Dict[str, Any]:
         return self.system_info
 
@@ -905,7 +904,7 @@ class Machine:
             uuids = await cansocket.query_klipper_uuids(cansock)
             cansock.close()
         return uuids
-    
+
     async def detect_video_devices(self) -> Dict[str, List[Dict[str, Any]]]:
         async with self.periph_lock:
             eventloop = self.server.get_event_loop()
@@ -939,7 +938,8 @@ class Machine:
                 device["modes"] = modes
                 libcam_devs.append(device)
         return libcam_devs
-    
+
+
 class BaseProvider:
     def __init__(self, config: ConfigHelper) -> None:
         self.server = config.get_server()
@@ -1465,7 +1465,7 @@ class SupervisordCliProvider(BaseProvider):
             cmd, proc_input=None, log_complete=False, attempts=tries,
             timeout=timeout, success_codes=success_codes
         )
-        
+
     def _get_active_state(self, sub_state: str) -> str:
         if sub_state == "stopping":
             return "deactivating"
@@ -1473,7 +1473,7 @@ class SupervisordCliProvider(BaseProvider):
             return "active"
         else:
             return "inactive"
-                
+
     async def _detect_active_services(self) -> None:
         machine: Machine = self.server.lookup_component("machine")
         units: Dict[str, Any] = await self._get_process_info()
@@ -1483,7 +1483,7 @@ class SupervisordCliProvider(BaseProvider):
                     'active_state': self._get_active_state(info["state"]),
                     'sub_state': info["state"]
                 }
-    
+
     async def _get_process_info(
         self, process_names: Optional[List[str]] = None
     ) -> Dict[str, Any]:
@@ -1513,7 +1513,7 @@ class SupervisordCliProvider(BaseProvider):
                     "state": parts[1].lower()
                 }
         return units
-                
+
     async def _update_service_status(self,
                                      sequence: int,
                                      notify: bool = True
@@ -1572,7 +1572,7 @@ class SupervisordCliProvider(BaseProvider):
             else:
                 break
         return {}
-    
+
     async def extract_service_info(
         self,
         service: str,

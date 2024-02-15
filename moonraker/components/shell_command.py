@@ -278,10 +278,11 @@ class ShellCommand:
                 f"Error running shell command: '{self.name}'",
                 self.return_code, stdout, stderr)
 
-    async def _create_subprocess(self,
-                                 use_callbacks: bool = False,
-                                 has_input: bool = False
-                                 ) -> bool:
+    async def _create_subprocess(
+        self,
+        use_callbacks: bool = False,
+        has_input: bool = False
+    ) -> bool:
         loop = asyncio.get_running_loop()
 
         def protocol_factory():
@@ -324,6 +325,8 @@ class ShellCommand:
         success_codes: Optional[List[int]] = None
     ) -> bool:
         assert self.proc is not None
+        if success_codes is None:
+            success_codes = [0]
         self.return_code = self.proc.returncode
         success = self.return_code in success_codes and complete
         if success:
