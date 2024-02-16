@@ -97,6 +97,9 @@ class KlippyAPI(APITransport):
         self.server.register_endpoint(
             "/printer/open_message", RequestType.POST, self._send_message)
         
+        self.server.register_endpoint(
+            "/printer/turn_off_heaters", RequestType.POST, self._turn_off_heaters)
+        
         ####    END NEW    ####
     def _on_klippy_disconnect(self) -> None:
             self.host_subscription.clear()
@@ -130,6 +133,13 @@ class KlippyAPI(APITransport):
     async def open_message(self, message_type, message, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "messages/open_message", {'message_type': message_type, 'message': message}, default)
+        
+    async def _turn_off_heaters(self, web_request: WebRequest) -> str:
+        return await self.off_heaters()
+
+    async def off_heaters(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "heaters/turn_off_heaters", {}, default)
  
     async def _gcode_save_default_neopixel_color(self, web_request:WebRequest) -> str:
         neopixel: str = web_request.get_str('neopixel')
