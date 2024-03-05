@@ -141,6 +141,9 @@ class FileManager:
             "/server/files/delete_file", RequestType.DELETE, self._handle_file_delete,
             transports=TransportType.WEBSOCKET
         )
+        self.server.register_endpoint(
+            "/server/files/has_media", RequestType.GET, self._handle_has_media
+        )
         # register client notificaitons
         self.server.register_notification("file_manager:filelist_changed")
 
@@ -158,6 +161,7 @@ class FileManager:
         config.get('log_path', None, deprecate=True)
         self.register_data_folder("logs")
         gc_path = self.register_data_folder("gcodes", full_access=True)
+        self.register_directory("media", "/media")
         if gc_path.is_dir():
             prune: bool = True
             saved_gc_dir: str = db.get_item(
@@ -412,10 +416,20 @@ class FileManager:
     async def _handle_filelist_request(self,
                                        web_request: WebRequest
                                        ) -> List[Dict[str, Any]]:
-        root = web_request.get_str('root', "gcodes")
-        flist = self.get_file_list(root, list_format=True)
-        return cast(List[Dict[str, Any]], flist)
-
+        root_gcodes = web_request.get_str('root', "gcodes")
+        root_media = web_request.get_str('root', "media")
+        flist_gcodes = self.get_file_list(root_gcodes, list_format=True)
+        flist_media = self.get_file_list(root_media, list_format=True)
+        common_list = flist_media + flist_gcodes
+        return cast(List[Dict[str, Any]], common_list)
+    
+    async def _handle_has_media(self,
+                                web_request: WebRequest
+                                ) -> bool:
+        root_media = web_request.get_str('root', "media")
+        flist_media = self.get_file_list(root_media, list_format=True)
+        return True if len(flist_media) != 0 else False
+    
     async def _handle_metadata_request(self,
                                        web_request: WebRequest
                                        ) -> Dict[str, Any]:
@@ -971,7 +985,7 @@ class FileManager:
 
     def get_file_list(self,
                       root: str,
-                      list_format: bool = False
+                      list_format: bool = False,
                       ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         # Use os.walk find files in sd path and subdirs
         filelist: Dict[str, Any] = {}
@@ -1000,7 +1014,7 @@ class FileManager:
             dir_names[:] = scan_dirs
             for name in files:
                 ext = os.path.splitext(name)[-1].lower()
-                if root == 'gcodes' and ext not in VALID_GCODE_EXTS:
+                if root in ['gcodes', 'media'] and ext not in VALID_GCODE_EXTS:
                     continue
                 full_path = os.path.join(dir_path, name)
                 if not os.path.exists(full_path):
