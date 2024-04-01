@@ -32,6 +32,7 @@ ESTOP_ENDPOINT = "emergency_stop"
 LIST_EPS_ENDPOINT = "list_endpoints"
 GC_OUTPUT_ENDPOINT = "gcode/subscribe_output"
 GCODE_ENDPOINT = "gcode/script"
+ASYNC_COMMAND_ENDPOINT = "gcode/async_command"
 SUBSCRIPTION_ENDPOINT = "objects/subscribe"
 STATUS_ENDPOINT = "objects/query"
 OBJ_LIST_ENDPOINT = "objects/list"
@@ -103,6 +104,8 @@ class KlippyAPI(APITransport):
         self.server.register_endpoint(
             "/printer/turn_off_heaters", RequestType.POST, self._turn_off_heaters)
         
+        self.server.register_endpoint(
+            "/printer/gcode/async_command", RequestType.POST, self._run_async_command)
         ####    END NEW    ####
     def _on_klippy_disconnect(self) -> None:
             self.host_subscription.clear()
@@ -126,24 +129,7 @@ class KlippyAPI(APITransport):
 
     async def _gcode_firmware_restart(self, web_request: WebRequest) -> str:
         return await self.do_restart("FIRMWARE_RESTART")
-
-    ####      NEW      ####
-    async def _send_message(self, web_request: WebRequest) -> str:
-        message_type: str = web_request.get_str('message_type')
-        message: str = web_request.get_str('message')
-        return await self.open_message(message_type, message)
     
-    async def open_message(self, message_type, message, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
-        return await self._send_klippy_request(
-            "messages/open_message", {'message_type': message_type, 'message': message}, default)
-        
-    async def _turn_off_heaters(self, web_request: WebRequest) -> str:
-        return await self.off_heaters()
-
-    async def off_heaters(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
-        return await self._send_klippy_request(
-            "heaters/turn_off_heaters", {}, default)
- 
     async def _gcode_save_default_neopixel_color(self, web_request:WebRequest) -> str:
         neopixel: str = web_request.get_str('neopixel')
         return await self.save_default_neopixel_color(neopixel)
@@ -154,49 +140,65 @@ class KlippyAPI(APITransport):
         
     async def _gcode_rebuild(self, web_request: WebRequest) -> str:
         return await self.do_rebuild("SDCARD_RUN_FILE")
+
+    ####      NEW      ####
+    async def _send_message(self, web_request: WebRequest) -> str:
+        message_type: str = web_request.get_str('message_type')
+        message: str = web_request.get_str('message')
+        return await self.open_message(message_type, message)
+    async def open_message(self, message_type, message, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "messages/open_message", {'message_type': message_type, 'message': message}, default)
         
-    async def _set_auto_off(self, web_request: WebRequest) -> str:
-        return await self.do_set_auto_off(web_request.get_boolean('autoOff_enable'))
-        
-    async def _set_wifi_mode(self, web_request: WebRequest) -> str:
-        return await self.do_set_wifi_mode(web_request.get_str('wifi_mode'))
+    async def _turn_off_heaters(self, web_request: WebRequest) -> str:
+        return await self.off_heaters()
+    async def off_heaters(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "heaters/turn_off_heaters", {}, default)
     
     async def _set_hotspot(self, web_request: WebRequest) -> str:
         return await self.do_set_hotspot(web_request.get_str('hotspot'))
-
     async def do_set_hotspot(self, hotspot, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "wifi_mode/set_hotspot", {'hotspot': hotspot}, default)
-
+        
+    async def _set_wifi_mode(self, web_request: WebRequest) -> str:
+        return await self.do_set_wifi_mode(web_request.get_str('wifi_mode'))
     async def do_set_wifi_mode(self, wifi_mode, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "wifi_mode/set_wifi_mode", {'wifi_mode': wifi_mode}, default)
-    
+        
+    async def _set_auto_off(self, web_request: WebRequest) -> str:
+        return await self.do_set_auto_off(web_request.get_boolean('autoOff_enable'))
     async def do_set_auto_off(self, enable, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "autooff/set_auto_off", {'autoOff_enable': enable}, default)
         
     async def _set_klipper_lang(self, web_request: WebRequest) -> str:
         return await self.do_set_klipper_lang(web_request.get_str('lang'))
-
     async def do_set_klipper_lang(self, lang, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "locale/set_lang", {'lang': lang}, default)
     
     async def _set_safety_printing(self, web_request: WebRequest) -> str:
         return await self.do_set_safety_printing(web_request.get_boolean('safety_enabled'))
-
     async def do_set_safety_printing(self, safety, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "safety_printing/set_safety_printing", {'safety_enabled': safety}, default)
 
     async def _off_auto_off(self, web_request: WebRequest) -> str:
         return await self.do_off_auto_off()
-            
     async def do_off_auto_off(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "autooff/off_autooff", {}, default)
-        
+    
+    async def _run_async_command(self, web_request: WebRequest) -> str:
+        return await self.do_run_async_command(web_request.get_str('command'))
+    async def do_run_async_command(self, command, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        params = {'command': command}
+        return await self._send_klippy_request(
+            ASYNC_COMMAND_ENDPOINT, params, default)
+    
     async def do_rebuild(
         self, gc: str, wait_klippy_started: bool = False
     ) -> str:
