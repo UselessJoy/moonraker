@@ -162,6 +162,7 @@ class FileManager:
         self.register_data_folder("logs")
         gc_path = self.register_data_folder("gcodes", full_access=True)
         self.register_directory("media", "/media")
+        self.register_directory("tmp", "/tmp")
         if gc_path.is_dir():
             prune: bool = True
             saved_gc_dir: str = db.get_item(
@@ -1085,7 +1086,7 @@ class FileManager:
         async with self.sync_lock:
             root, full_path = self._convert_request_path(path)
             self.check_reserved_path(full_path, True)
-            if root not in self.full_access_roots:
+            if root not in self.full_access_roots and root != "logs":
                 raise self.server.error(
                     f"Path not available for DELETE: {path}", 405)
             if not os.path.isfile(full_path):

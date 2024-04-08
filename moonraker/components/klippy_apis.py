@@ -106,6 +106,9 @@ class KlippyAPI(APITransport):
         
         self.server.register_endpoint(
             "/printer/gcode/async_command", RequestType.POST, self._run_async_command)
+        
+        self.server.register_endpoint(
+            "/printer/resonance_tester/action", RequestType.POST, self._resonance_tester_action)
         ####    END NEW    ####
     def _on_klippy_disconnect(self) -> None:
             self.host_subscription.clear()
@@ -198,6 +201,13 @@ class KlippyAPI(APITransport):
         params = {'command': command}
         return await self._send_klippy_request(
             ASYNC_COMMAND_ENDPOINT, params, default)
+        
+    async def _resonance_tester_action(self, web_request: WebRequest) -> str:
+        return await self.do_resonance_tester_action(web_request.get_str('action'), web_request.get_list('args'))
+    async def do_resonance_tester_action(self, action, args, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        params = {'action': action, 'args': args}
+        return await self._send_klippy_request(
+            "resonance_tester/shaper_graph", params, default)
     
     async def do_rebuild(
         self, gc: str, wait_klippy_started: bool = False
