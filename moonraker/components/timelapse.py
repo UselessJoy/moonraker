@@ -659,26 +659,27 @@ class Timelapse:
 
             # apply rotation
             filterParam = ""
+            logging.info(f"flip_y is {self.config['flip_y']} flip_x is {self.config['flip_x']}")
             if self.config['rotation'] == 90 and self.config['flip_y']:
-                filterParam = " -vf 'transpose=3'"
+                filterParam = " -vf transpose=3"
             elif self.config['rotation'] == 90:
-                filterParam = " -vf 'transpose=1'"
+                filterParam = " -vf transpose=1"
             elif self.config['rotation'] == 180:
-                filterParam = " -vf 'hflip,vflip'"
+                filterParam = " -vf hflip,vflip"
             elif self.config['rotation'] == 270:
-                filterParam = " -vf 'transpose=2'"
+                filterParam = " -vf transpose=2"
             elif self.config['rotation'] == 270 and self.config['flip_y']:
-                filterParam = " -vf 'transpose=0'"
+                filterParam = " -vf transpose=0"
             elif self.config['rotation'] > 0:
                 pi = 3.141592653589793
                 rot = str(self.config['rotation']*(pi/180))
-                filterParam = " -vf 'rotate=" + rot + "'"
+                filterParam = " -vf rotate=" + rot
             elif self.config['flip_x'] and self.config['flip_y']:
-                filterParam = " -vf 'hflip,vflip'"
+                filterParam = " -vf hflip,vflip"
             elif self.config['flip_x']:
-                filterParam = " -vf 'hflip'"
+                filterParam = " -vf hflip"
             elif self.config['flip_y']:
-                filterParam = " -vf 'vflip'"
+                filterParam = " -vf vflip"
 
             # build shell command
             cmd = self.ffmpeg_binary_path \

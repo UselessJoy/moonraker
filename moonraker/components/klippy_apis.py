@@ -93,6 +93,12 @@ class KlippyAPI(APITransport):
             "/printer/setSafetyPrinting", RequestType.POST, self._set_safety_printing)
         
         self.server.register_endpoint(
+            "/printer/setWatchBedMesh", RequestType.POST, self._set_watch_bed_mesh)
+
+        self.server.register_endpoint(
+            "/printer/setAutoloadBedMesh", RequestType.POST, self._set_autoload_bed_mesh)
+        
+        self.server.register_endpoint(
             "/printer/setwifimode", RequestType.POST, self._set_wifi_mode)
         
         self.server.register_endpoint(
@@ -188,7 +194,19 @@ class KlippyAPI(APITransport):
     async def do_set_safety_printing(self, safety, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "safety_printing/set_safety_printing", {'safety_enabled': safety}, default)
-
+        
+    async def _set_watch_bed_mesh(self, web_request: WebRequest) -> str:
+        return await self.do_set_watch_bed_mesh(web_request.get_boolean('watch_bed_mesh'))
+    async def do_set_watch_bed_mesh(self, watch_bed_mesh, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "virtual_sdcard/set_watch_bed_mesh", {'watch_bed_mesh': watch_bed_mesh}, default)
+    
+    async def _set_autoload_bed_mesh(self, web_request: WebRequest) -> str:
+        return await self.do_set_autoload_bed_mesh(web_request.get_boolean('autoload_bed_mesh'))
+    async def do_set_autoload_bed_mesh(self, autoload_bed_mesh, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "virtual_sdcard/set_autoload_bed_mesh", {'autoload_bed_mesh': autoload_bed_mesh}, default)
+    
     async def _off_auto_off(self, web_request: WebRequest) -> str:
         return await self.do_off_auto_off()
     async def do_off_auto_off(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
