@@ -160,7 +160,11 @@ class FileManager:
 
         config.get('log_path', None, deprecate=True)
         self.register_data_folder("logs")
-        gc_path = self.register_data_folder("gcodes", full_access=True)
+        if self.register_directory("gcodes", str(self.datapath.joinpath('mmcblk0p1')), full_access=True):
+          gc_path = self.datapath.joinpath('mmcblk0p1')
+          # self.register_data_folder("gcodes_", full_access=True)
+        else:
+          gc_path = self.register_data_folder("gcodes", full_access=True)
         self.register_directory("media", "/media")
         self.register_directory("tmp", "/tmp")
         if gc_path.is_dir():
@@ -417,18 +421,18 @@ class FileManager:
     async def _handle_filelist_request(self,
                                        web_request: WebRequest
                                        ) -> List[Dict[str, Any]]:
-        root_gcodes = web_request.get_str('root', "gcodes")
-        root_media = web_request.get_str('root', "media")
-        flist_gcodes = self.get_file_list(root_gcodes, list_format=True)
-        flist_media = self.get_file_list(root_media, list_format=True)
-        common_list = flist_media + flist_gcodes
+        root = web_request.get_str('root', None)
+        if not root:
+          root = 'gcodes'
+        root_flist = self.get_file_list(root, list_format=True)
+        media_flist = self.get_file_list('media', list_format=True)
+        common_list = root_flist + media_flist
         return cast(List[Dict[str, Any]], common_list)
     
     async def _handle_has_media(self,
-                                web_request: WebRequest
+                                web_request: WebRequest = None
                                 ) -> bool:
-        root_media = web_request.get_str('root', "media")
-        flist_media = self.get_file_list(root_media, list_format=True)
+        flist_media = self.get_file_list("media", list_format=True)
         return True if len(flist_media) != 0 else False
     
     async def _handle_metadata_request(self,
@@ -975,13 +979,17 @@ class FileManager:
                 dest_path = upload_info['dest_path']
                 if upload_info["is_link"]:
                     dest_path = os.path.realpath(dest_path)
+                os.system(f"")
                 shutil.move(
                     upload_info['tmp_file_path'], dest_path)
                 finfo = self.get_path_info(upload_info['dest_path'],
                                            upload_info['root'])
-        except Exception:
+        except Exception as e:
+          if not isinstance(e, (OSError, PermissionError)):
             logging.exception("Upload Write Error")
             raise self.server.error("Unable to save file", 500)
+          finfo = self.get_path_info(upload_info['dest_path'],
+                                           upload_info['root'])
         return finfo
 
     def get_file_list(self,

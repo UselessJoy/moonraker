@@ -475,12 +475,11 @@ class KlippyConnection:
         if "virtual_sdcard" not in self._missing_reqs:
             # Update the gcode path
             query_res = await self.klippy_apis.query_objects(
-                {'configfile': None}, default=None)
+                {'virtual_sdcard': None}, default=None)
             if query_res is None:
                 logging.info("Unable to set SD Card path")
             else:
-                config = query_res.get('configfile', {}).get('config', {})
-                vsd_config = config.get('virtual_sdcard', {})
+                vsd_config = query_res.get('virtual_sdcard', {})
                 vsd_path = vsd_config.get('path', None)
                 if vsd_path is not None:
                     file_manager: FileManager = self.server.lookup_component(
