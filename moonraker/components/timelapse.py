@@ -3,6 +3,8 @@
 # Copyright (C) 2021 Christoph Frei <fryakatkop@gmail.com>
 #
 # This file may be distributed under the terms of the GNU GPLv3 license.
+
+# Сделать: нахождение фреймов при запуске мунрейкера
 from __future__ import annotations
 import logging
 import os
@@ -27,11 +29,12 @@ if TYPE_CHECKING:
     from . import shell_command
     from . import klippy_apis
     from . import database
+    from file_manager import file_manager
 
     APIComp = klippy_apis.KlippyAPI
     SCMDComp = shell_command.ShellCommandFactory
     DBComp = database.MoonrakerDatabase
-
+    FMComp = file_manager.FileManager
 
 class Timelapse:
 
@@ -54,12 +57,18 @@ class Timelapse:
         self.server = confighelper.get_server()
         self.klippy_apis: APIComp = self.server.lookup_component('klippy_apis')
         self.database: DBComp = self.server.lookup_component("database")
+        file_manager: FMComp = self.server.lookup_component('file_manager')
 
-        # setup static (nonDB) settings
-        out_dir_cfg = confighelper.get(
-            "output_path", "~/timelapse/")
-        temp_dir_cfg = confighelper.get(
-            "frame_path", "/tmp/timelapse/")
+        if os.path.isdir(str(file_manager.datapath.joinpath('mmcblk0p1'))):
+          parent_dir = str(file_manager.datapath.joinpath('mmcblk0p1'))
+        else:
+          parent_dir = "/tmp"
+        out_dir_cfg = os.path.join(parent_dir, 'timelapse')
+        temp_dir_cfg = os.path.join(parent_dir, 'timelapse_tmp')
+        # out_dir_cfg = confighelper.get(
+        #     "output_path", "~/timelapse/")
+        # temp_dir_cfg = confighelper.get(
+        #     "frame_path", "/tmp/timelapse/")
         self.ffmpeg_binary_path = confighelper.get(
             "ffmpeg_binary_path", "/usr/bin/ffmpeg")
         self.wget_skip_cert = confighelper.getboolean(
@@ -101,7 +110,8 @@ class Timelapse:
             'flip_y': False,
             'duplicatelastframe': 5,
             'previewimage': True,
-            'saveframes': False
+            'saveframes': False,
+            'deleteframes': False # Пока не реализовано (мб и не нужна вообще), но должна удалять фреймы при рендере (cleanup удаляет все кадры в директории в начале печати)
         }
 
         # Get Config from Database and overwrite defaults
@@ -142,7 +152,7 @@ class Timelapse:
                                         self.out_dir,
                                         full_access=True
                                         )
-        file_manager.register_directory("timelapse_frames", self.temp_dir)
+        file_manager.register_directory("timelapse_frames", self.temp_dir, full_access=True)
         self.server.register_notification("timelapse:timelapse_event")
         self.server.register_event_handler(
             "server:gcode_response", self.handle_gcode_response)
@@ -166,6 +176,8 @@ class Timelapse:
         self.server.register_endpoint(
             "/machine/timelapse/lastframeinfo", ['GET'],
             self.webrequest_lastframeinfo)
+        self.server.register_endpoint(
+            "/machine/timelapse/old_frames",  ['GET'], self.webrequest_oldframe)
 
     async def component_init(self) -> None:
         await self.getWebcamConfig()
@@ -460,6 +472,19 @@ class Timelapse:
             logging.exception(msg)
         self.hyperlapserunning = False
 
+    async def webrequest_oldframe(self, web_request: WebRequest) -> None: 
+      list_frames = os.listdir(self.temp_dir)
+      if len(list_frames):
+        self.framecount = len(list_frames)
+        for frame in list_frames:
+          result = {'action': 'newframe'}
+          result.update({
+                'frame': str(self.framecount),
+                'framefile': frame,
+                'status': 'success'
+            })
+          self.notify_event(result)
+           
     async def newframe(self) -> None:
         # make sure webcamconfig is uptodate before grabbing a new frame
         await self.getWebcamConfig()

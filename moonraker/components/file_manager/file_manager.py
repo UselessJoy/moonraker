@@ -144,6 +144,9 @@ class FileManager:
         self.server.register_endpoint(
             "/server/files/has_media", RequestType.GET, self._handle_has_media
         )
+        self.server.register_endpoint(
+            "/server/files/get_root_usage", RequestType.GET, self._handle_get_root_usage
+        )
         # register client notificaitons
         self.server.register_notification("file_manager:filelist_changed")
 
@@ -160,9 +163,8 @@ class FileManager:
 
         config.get('log_path', None, deprecate=True)
         self.register_data_folder("logs")
-        if self.register_directory("gcodes", str(self.datapath.joinpath('mmcblk0p1')), full_access=True):
-          gc_path = self.datapath.joinpath('mmcblk0p1')
-          # self.register_data_folder("gcodes_", full_access=True)
+        if os.path.isdir(str(self.datapath.joinpath('mmcblk0p1'))):
+          gc_path = self.register_data_folder("gcodes", 'mmcblk0p1', full_access=True)
         else:
           gc_path = self.register_data_folder("gcodes", full_access=True)
         self.register_directory("media", "/media")
@@ -259,9 +261,9 @@ class FileManager:
                 self.server.remove_warning("gcode_path")
 
     def register_data_folder(
-        self, folder_name: str, full_access: bool = False
+        self, folder_name: str, folder_path: str = '', full_access: bool = False
     ) -> pathlib.Path:
-        new_path = self.datapath.joinpath(folder_name)
+        new_path = self.datapath.joinpath(f"{folder_path}/{folder_name}" if folder_path != '' else folder_name)
         if not new_path.exists():
             try:
                 new_path.mkdir()
@@ -372,7 +374,7 @@ class FileManager:
 
     def get_directory(self, root: str = "gcodes") -> str:
         return self.file_paths.get(root, "")
-
+        
     def get_registered_dirs(self) -> List[str]:
         return list(self.file_paths.keys())
 
@@ -418,6 +420,10 @@ class FileManager:
     def upload_queue_enabled(self) -> bool:
         return self.queue_gcodes
 
+    async def _handle_get_root_usage(self, web_request: WebRequest) -> dict:
+        root = web_request.get('root', 'gcodes')
+        return {'disk_usage': shutil.disk_usage(self.file_paths[root])._asdict()}
+      
     async def _handle_filelist_request(self,
                                        web_request: WebRequest
                                        ) -> List[Dict[str, Any]]:
