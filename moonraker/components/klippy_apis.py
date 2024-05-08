@@ -93,6 +93,9 @@ class KlippyAPI(APITransport):
             "/printer/setSafetyPrinting", RequestType.POST, self._set_safety_printing)
         
         self.server.register_endpoint(
+            "/printer/setQuiteMode", RequestType.POST, self._set_quite_mode)
+        
+        self.server.register_endpoint(
             "/printer/setWatchBedMesh", RequestType.POST, self._set_watch_bed_mesh)
 
         self.server.register_endpoint(
@@ -194,6 +197,12 @@ class KlippyAPI(APITransport):
     async def do_set_safety_printing(self, safety, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "safety_printing/set_safety_printing", {'safety_enabled': safety}, default)
+
+    async def _set_quite_mode(self, web_request: WebRequest) -> str:
+        return await self.do_set_quite_mode(web_request.get_str('stepper'), web_request.get_boolean('quite_mode'))
+    async def do_set_quite_mode(self, stepper, quite_mode, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            f"tmc/set_quite_mode/{stepper}", {'quite_mode': quite_mode}, default)
         
     async def _set_watch_bed_mesh(self, web_request: WebRequest) -> str:
         return await self.do_set_watch_bed_mesh(web_request.get_boolean('watch_bed_mesh'))
