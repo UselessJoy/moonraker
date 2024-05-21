@@ -26,7 +26,6 @@ from typing import (
 if TYPE_CHECKING:
     from ...confighelper import ConfigHelper
     from ..shell_command import ShellCommand
-    from ..machine import Machine
     from .update_manager import CommandHelper
     from ..http_client import HttpClient
 
@@ -48,27 +47,32 @@ class GitDeploy(AppDeploy):
     async def initialize(self) -> Dict[str, Any]:
         storage = await super().initialize()
         await self.repo.restore_state(storage)
-        self._is_valid = self.repo.is_valid()
+        self._is_valid = storage.get("is_valid", self.repo.is_valid())
         if not self.needs_refresh():
             self.repo.log_repo_info()
         return storage
 
     async def refresh(self) -> None:
-        try:
-            await self._update_repo_state()
-        except Exception:
-            logging.exception("Error Refreshing git state")
+        await self._update_repo_state(raise_exc=False)
 
-    async def _update_repo_state(self, need_fetch: bool = True) -> None:
+    async def _update_repo_state(
+        self, need_fetch: bool = True, raise_exc: bool = True
+    ) -> None:
         self._is_valid = False
-        await self.repo.refresh_repo_state(need_fetch=need_fetch)
-        self.log_info(f"Channel: {self.channel}")
-        self._is_valid = self.repo.is_valid()
-        if not self._is_valid:
-            self.log_info("Repo validation check failed, updates disabled")
+        try:
+            await self.repo.refresh_repo_state(need_fetch=need_fetch)
+        except Exception as e:
+            if raise_exc or isinstance(e, asyncio.CancelledError):
+                raise
         else:
-            self.log_info("Validity check for git repo passed")
-        self._save_state()
+            self._is_valid = self.repo.is_valid()
+        finally:
+            self.log_info(f"Channel: {self.channel}")
+            if not self._is_valid:
+                self.log_info("Repo validation check failed, updates disabled")
+            else:
+                self.log_info("Validity check for git repo passed")
+            self._save_state()
 
     async def update(self) -> bool:
         await self.repo.wait_for_init()
@@ -172,9 +176,6 @@ class GitDeploy(AppDeploy):
         else:
             self.repo.set_rollback_state(rb_state)
 
-    async def close(self) -> None:
-        await self.repo.unset_current_instance()
-
 
 GIT_ASYNC_TIMEOUT = 300.
 GIT_ENV_VARS = {
@@ -227,7 +228,6 @@ class GitRepo:
 
         self.repo_warnings: List[str] = []
         self.repo_anomalies: List[str] = []
-        self.managing_instances: List[str] = []
         self.init_evt: Optional[asyncio.Event] = None
         self.initialized: bool = False
         self.git_operation_lock = asyncio.Lock()
@@ -270,8 +270,6 @@ class GitRepo:
         self.rollback_version = GitVersion(str(rbv))
         if not await self._detect_git_dir():
             self.valid_git_repo = False
-        if self.valid_git_repo:
-            await self.set_current_instance()
         self._check_warnings()
 
     def get_persistent_data(self) -> Dict[str, Any]:
@@ -371,6 +369,7 @@ class GitRepo:
             self._check_warnings()
         except Exception:
             logging.exception(f"Git Repo {self.alias}: Initialization failure")
+            self._check_warnings()
             raise
         else:
             self.initialized = True
@@ -428,7 +427,6 @@ class GitRepo:
                     if ext in SRC_EXTS:
                         self.untracked_files.append(fname)
             self.valid_git_repo = True
-        await self.set_current_instance()
         return True
 
     async def _detect_git_dir(self) -> bool:
@@ -671,6 +669,12 @@ class GitRepo:
         self.repo_anomalies.clear()
         if self.repo_corrupt:
             self.repo_warnings.append("Repo is corrupt")
+        if self.git_branch == "?":
+            self.repo_warnings.append("Failed to detect git branch")
+        elif self.git_remote == "?":
+            self.repo_warnings.append(
+                f"Failed to detect tracking remote for branch {self.git_branch}"
+            )
         if self.upstream_url == "?":
             self.repo_warnings.append("Failed to detect repo url")
             return
@@ -700,12 +704,6 @@ class GitRepo:
             self.repo_warnings.append(
                 "Repo is dirty.  Detected the following modifed files: "
                 f"{self.modified_files}"
-            )
-        if len(self.managing_instances) > 1:
-            instances = "\n".join([f"  {ins}" for ins in self.managing_instances])
-            self.repo_anomalies.append(
-                f"Multiple instances of Moonraker managing this repo:\n"
-                f"{instances}"
             )
         self._generate_warn_msg()
 
@@ -977,50 +975,6 @@ class GitRepo:
                 tagged_commits[sha] = tag
             # Return tagged commits as SHA keys mapped to tag values
             return tagged_commits
-
-    async def set_current_instance(self) -> None:
-        # Check to see if multiple instances of Moonraker are configured
-        # to manage this repo
-        full_id = self._get_instance_id()
-        self.managing_instances.clear()
-        try:
-            instances = await self.config_get(
-                "moonraker.instance", get_all=True, local_only=True
-            )
-            if instances is None:
-                await self.config_set("moonraker.instance", full_id)
-                self.managing_instances = [full_id]
-            else:
-                det_instances = [
-                    ins.strip() for ins in instances.split("\n") if ins.strip()
-                ]
-                if full_id not in det_instances:
-                    await self.config_add("moonraker.instance", full_id)
-                    det_instances.append(full_id)
-                self.managing_instances = det_instances
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            logging.info(
-                f"Git Repo {self.alias}: Moonraker Instance Validation Error, {e}"
-            )
-
-    async def unset_current_instance(self) -> None:
-        full_id = self._get_instance_id()
-        if full_id not in self.managing_instances:
-            return
-        try:
-            await self.config_unset("moonraker.instance", pattern=full_id)
-        except asyncio.CancelledError:
-            raise
-        except Exception as e:
-            logging.info(f"Git repo {self.alias}: Error removing instance, {e}")
-
-    def _get_instance_id(self) -> str:
-        machine: Machine = self.server.lookup_component("machine")
-        cur_name = machine.unit_name
-        cur_uuid: str = self.server.get_app_args()["instance_uuid"]
-        return f"{cur_name}@{cur_uuid}"
 
     def get_repo_status(self) -> Dict[str, Any]:
         no_untrk_src = len(self.untracked_files) == 0
