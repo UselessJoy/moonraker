@@ -45,16 +45,13 @@ if TYPE_CHECKING:
     from ...confighelper import ConfigHelper
     from ...common import WebRequest
     from ..klippy_connection import KlippyConnection
-    from .. import database
-    from .. import klippy_apis
-    from .. import shell_command
+    from ..klippy_apis import KlippyAPI as APIComp
+    from ..database import MoonrakerDatabase as DBComp
+    from ..shell_command import ShellCommandFactory as SCMDComp
     from ..job_queue import JobQueue
     from ..job_state import JobState
     from ..secrets import Secrets
     StrOrPath = Union[str, pathlib.Path]
-    DBComp = database.MoonrakerDatabase
-    APIComp = klippy_apis.KlippyAPI
-    SCMDComp = shell_command.ShellCommandFactory
     _T = TypeVar("_T")
 
 VALID_GCODE_EXTS = ['.gcode', '.g', '.gco', '.ufp', '.nc']
@@ -908,7 +905,8 @@ class FileManager:
             'start_print': start_print,
             'unzip_ufp': unzip_ufp,
             'ext': f_ext,
-            "is_link": os.path.islink(dest_path)
+            "is_link": os.path.islink(dest_path),
+            "user": upload_args.get("current_user")
         }
 
     async def _finish_gcode_upload(
@@ -929,10 +927,11 @@ class FileManager:
         started: bool = False
         queued: bool = False
         if upload_info['start_print']:
+            user: Optional[Dict[str, Any]] = upload_info.get("user")
             if can_start:
                 kapis: APIComp = self.server.lookup_component('klippy_apis')
                 try:
-                    await kapis.start_print(upload_info['filename'])
+                    await kapis.start_print(upload_info['filename'], user=user)
                 except self.server.error:
                     # Attempt to start print failed
                     pass
@@ -941,7 +940,7 @@ class FileManager:
             if self.queue_gcodes and not started:
                 job_queue: JobQueue = self.server.lookup_component('job_queue')
                 await job_queue.queue_job(
-                    upload_info['filename'], check_exists=False)
+                    upload_info['filename'], check_exists=False, user=user)
                 queued = True
         self.fs_observer.on_item_create("gcodes", upload_info["dest_path"])
         result = dict(self._sched_changed_event(
@@ -1210,6 +1209,7 @@ class NotifySyncLock(asyncio.Lock):
         timeout = 1200. if has_pending else 1.
         for _ in range(5):
             try:
+                assert mcfut is not None
                 await asyncio.wait_for(asyncio.shield(mcfut), timeout)
             except asyncio.TimeoutError:
                 if timeout > 2.:
