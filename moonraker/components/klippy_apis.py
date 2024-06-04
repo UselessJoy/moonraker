@@ -110,6 +110,8 @@ class KlippyAPI(APITransport):
         
         self.server.register_endpoint(
             "/printer/open_message", RequestType.POST, self._send_message)
+        self.server.register_endpoint(
+            "/printer/close_message", RequestType.POST, self._close_message)
         
         self.server.register_endpoint(
             "/printer/turn_off_heaters", RequestType.POST, self._turn_off_heaters)
@@ -164,6 +166,12 @@ class KlippyAPI(APITransport):
     async def open_message(self, message_type, message, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "messages/open_message", {'message_type': message_type, 'message': message}, default)
+    
+    async def _close_message(self, web_request: WebRequest) -> str:
+        return await self.close_message()
+    async def close_message(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "messages/close_message", {}, default)
         
     async def _turn_off_heaters(self, web_request: WebRequest) -> str:
         return await self.off_heaters()
