@@ -155,8 +155,6 @@ class Timelapse:
         file_manager.register_directory("timelapse_frames", self.temp_dir, full_access=True)
         self.server.register_notification("timelapse:timelapse_event")
         self.server.register_event_handler(
-            "server:gcode_response", self.handle_gcode_response)
-        self.server.register_event_handler(
             "server:status_update", self.handle_status_update)
         self.server.register_event_handler(
             "server:klippy_ready", self.handle_klippy_ready)
@@ -178,6 +176,9 @@ class Timelapse:
             self.webrequest_lastframeinfo)
         self.server.register_endpoint(
             "/machine/timelapse/old_frames",  ['GET'], self.webrequest_oldframe)
+        self.server.register_endpoint(
+            "/machine/timelapse/delete_frames",  ['POST'], self.delete_frames
+        )
 
     async def component_init(self) -> None:
         await self.getWebcamConfig()
@@ -527,47 +528,48 @@ class Timelapse:
             printstats = status['print_stats']
             if 'state' in printstats:
                 state = printstats['state']
-                if state == 'cancelled':
+                if state == 'printing' and not self.printing:
+                    self.cleanup()
+                    self.printing = True
+                    if self.config['mode'] == "hyperlapse":
+                      ioloop = IOLoop.current()
+                      ioloop.spawn_callback(self.start_hyperlapse)
+                elif state == 'complete':
                     self.printing = False
-                    ioloop = IOLoop.current()
-                    ioloop.spawn_callback(self.stop_hyperlapse)
+                    # stop hyperlapse if mode is set
+                    if self.config['mode'] == "hyperlapse":
+                        ioloop = IOLoop.current()
+                        ioloop.spawn_callback(self.stop_hyperlapse)
 
-    async def handle_gcode_response(self, gresponse: str) -> None:
-        if gresponse == "File selected":
-            # print_started
-            self.cleanup()
-            self.printing = True
+                    if self.config['enabled']:
+                        if self.config['saveframes']:
+                            ioloop = IOLoop.current()
+                            ioloop.spawn_callback(self.saveFramesZip)
+                        if self.config['autorender']:
+                            ioloop = IOLoop.current()
+                            ioloop.spawn_callback(self.render)
+                elif state in ['error', 'print_error', 'cancelled']:
+                    self.cleanup()
+                    self.printing = False
 
-            # start hyperlapse if mode is set
-            if self.config['mode'] == "hyperlapse":
-                ioloop = IOLoop.current()
-                ioloop.spawn_callback(self.start_hyperlapse)
-
-        elif gresponse == "Done printing file":
-            # print_done
-            self.printing = False
-
-            # stop hyperlapse if mode is set
-            if self.config['mode'] == "hyperlapse":
-                ioloop = IOLoop.current()
-                ioloop.spawn_callback(self.stop_hyperlapse)
-
-            if self.config['enabled']:
-                if self.config['saveframes']:
-                    ioloop = IOLoop.current()
-                    ioloop.spawn_callback(self.saveFramesZip)
-                if self.config['autorender']:
-                    ioloop = IOLoop.current()
-                    ioloop.spawn_callback(self.render)
-
-    def cleanup(self) -> None:
-        logging.debug("cleanup frame directory")
+    async def delete_frames(self, web_request) -> None:
+        self.cleanup()
+      
+    def cleanup(self, web_request = None) -> None:
+        logging.debug(f"cleanup frame {self.temp_dir} directory")
         filelist = glob.glob(self.temp_dir + "frame*.jpg")
         if filelist:
             for filepath in filelist:
                 os.remove(filepath)
         self.framecount = 0
         self.lastframefile = ""
+        result = {'action': 'delete'}
+        result.update({
+                'frame': str(self.framecount),
+                'framefile': "",
+                'status': 'success'
+        })
+        self.notify_event(result)
 
     def call_saveFramesZip(self) -> None:
         ioloop = IOLoop.current()
@@ -665,7 +667,11 @@ class Timelapse:
                     duplicatePath = self.temp_dir + duplicate
                     duplicates.append(duplicatePath)
                     try:
-                        shutil.copy(lastframe, duplicatePath)
+                        # if os.path.isdir(dst):
+                            # dst = os.path.join(dst, os.path.basename(src))
+                        logging.info(f"cp {lastframe} {duplicatePath}")
+                        os.system(f"cp {lastframe} {duplicatePath}")
+                        # shutil.copy(lastframe, duplicatePath)
                     except OSError as err:
                         logging.info(f"duplicating last frame failed: {err}")
 
@@ -756,8 +762,10 @@ class Timelapse:
 
                 # move finished output file to output directory
                 try:
-                    shutil.move(self.temp_dir + outfile + ".mp4",
-                                self.out_dir + outfile + ".mp4")
+                    logging.info(f"mv {self.temp_dir + outfile}.mp4 {self.out_dir + outfile}.mp4")
+                    os.system(f"mv {self.temp_dir + outfile}.mp4 {self.out_dir + outfile}.mp4")
+                    # shutil.move(self.temp_dir + outfile + ".mp4",
+                    #             self.out_dir + outfile + ".mp4")
                 except OSError as err:
                     logging.info(f"moving output file failed: {err}")
 
@@ -767,7 +775,10 @@ class Timelapse:
                     previewFilePath = self.out_dir + previewFile
                     previewSrc = filelist[-1:][0]
                     try:
-                        shutil.copy(previewSrc, previewFilePath)
+
+                        logging.info(f"cp {previewSrc} {previewFilePath}")
+                        os.system(f"cp {previewSrc} {previewFilePath}")
+                        # shutil.copy(previewSrc, previewFilePath)
                     except OSError as err:
                         logging.info(f"copying preview image failed: {err}")
                     else:
