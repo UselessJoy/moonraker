@@ -689,33 +689,21 @@ class Timelapse:
                 fps = self.config['output_framerate']
 
             # apply rotation
+            filterParams = []
+            if self.config['flip_y']:
+                filterParams.append("vflip")
+            if self.config['flip_x']:
+                filterParams.append("hflip")
+            if self.config['rotation']:
+                tr = {90: "transpose=1", 180: "transpose=1,transpose=1", 270: "transpose=2"}
+                filterParams.append(tr[self.config['rotation']])
             filterParam = ""
-            logging.info(f"flip_y is {self.config['flip_y']} flip_x is {self.config['flip_x']}")
-            if self.config['rotation'] == 90 and self.config['flip_y']:
-                filterParam = " -vf transpose=3"
-            elif self.config['rotation'] == 90:
-                filterParam = " -vf transpose=1"
-            elif self.config['rotation'] == 180:
-                filterParam = " -vf hflip,vflip"
-            elif self.config['rotation'] == 270:
-                filterParam = " -vf transpose=2"
-            elif self.config['rotation'] == 270 and self.config['flip_y']:
-                filterParam = " -vf transpose=0"
-            elif self.config['rotation'] > 0:
-                pi = 3.141592653589793
-                rot = str(self.config['rotation']*(pi/180))
-                filterParam = " -vf rotate=" + rot
-            elif self.config['flip_x'] and self.config['flip_y']:
-                filterParam = " -vf hflip,vflip"
-            elif self.config['flip_x']:
-                filterParam = " -vf hflip"
-            elif self.config['flip_y']:
-                filterParam = " -vf vflip"
-
+            if len(filterParams):
+              filterParam = "-vf "+ ",".join(filterParams)
             # build shell command
             cmd = self.ffmpeg_binary_path \
                 + " -r " + str(fps) \
-                + " -i '" + inputfiles + "'" \
+                + " -i '" + inputfiles + "' " \
                 + filterParam \
                 + " -threads 2 -g 5" \
                 + " -crf " + str(self.config['constant_rate_factor']) \
@@ -789,7 +777,7 @@ class Timelapse:
                     # apply rotation previewimage if needed
                     if filterParam or self.config['extraoutputparams']:
                         cmd = self.ffmpeg_binary_path \
-                            + " -i '" + previewFilePath + "'" \
+                            + " -i '" + previewFilePath + "' " \
                             + filterParam \
                             + " -an" \
                             + " " + self.config['extraoutputparams'] \
