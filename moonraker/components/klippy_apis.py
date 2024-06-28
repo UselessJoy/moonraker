@@ -121,6 +121,12 @@ class KlippyAPI(APITransport):
         
         self.server.register_endpoint(
             "/printer/resonance_tester/action", RequestType.POST, self._resonance_tester_action)
+        
+        self.server.register_endpoint(
+            "/printer/setActiveTension", RequestType.POST, self._set_active_tension)
+        
+        self.server.register_endpoint(
+            "/printer/pid_calibrate/stop_pid_calibrate", RequestType.POST, self._stop_pid_calibrate)
         ####    END NEW    ####
     def _on_klippy_disconnect(self) -> None:
             self.host_subscription.clear()
@@ -226,6 +232,18 @@ class KlippyAPI(APITransport):
     async def do_set_autoload_bed_mesh(self, autoload_bed_mesh, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "virtual_sdcard/set_autoload_bed_mesh", {'autoload_bed_mesh': autoload_bed_mesh}, default)
+    
+    async def _set_active_tension(self, web_request: WebRequest) -> str:
+        return await self.do_set_active_tension(web_request.get_boolean('tension'))
+    async def do_set_active_tension(self, tension, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "resonance_tester/set_active_tension", {'tension': tension}, default)
+    
+    async def _stop_pid_calibrate(self, web_request: WebRequest) -> str:
+        return await self.do_stop_pid_calibrate()
+    async def do_stop_pid_calibrate(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "pid_calibrate/stop_pid_calibrate", {}, default)
     
     async def _off_auto_off(self, web_request: WebRequest) -> str:
         return await self.do_off_auto_off()
