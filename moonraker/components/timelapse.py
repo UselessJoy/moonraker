@@ -670,7 +670,7 @@ class Timelapse:
                         # if os.path.isdir(dst):
                             # dst = os.path.join(dst, os.path.basename(src))
                         logging.info(f"cp {lastframe} {duplicatePath}")
-                        os.system(f"cp {lastframe} {duplicatePath}")
+                        os.system(f"cp '{lastframe}' '{duplicatePath}'")
                         # shutil.copy(lastframe, duplicatePath)
                     except OSError as err:
                         logging.info(f"duplicating last frame failed: {err}")
@@ -750,8 +750,8 @@ class Timelapse:
 
                 # move finished output file to output directory
                 try:
-                    logging.info(f"mv {self.temp_dir + outfile}.mp4 {self.out_dir + outfile}.mp4")
-                    os.system(f"mv {self.temp_dir + outfile}.mp4 {self.out_dir + outfile}.mp4")
+                    logging.info(f"mv '{self.temp_dir + outfile}.mp4' '{self.out_dir + outfile}.mp4'")
+                    os.system(f"mv '{self.temp_dir + outfile}.mp4' '{self.out_dir + outfile}.mp4'")
                     # shutil.move(self.temp_dir + outfile + ".mp4",
                     #             self.out_dir + outfile + ".mp4")
                 except OSError as err:
@@ -764,8 +764,8 @@ class Timelapse:
                     previewSrc = filelist[-1:][0]
                     try:
 
-                        logging.info(f"cp {previewSrc} {previewFilePath}")
-                        os.system(f"cp {previewSrc} {previewFilePath}")
+                        logging.info(f"cp '{previewSrc}' '{previewFilePath}'")
+                        os.system(f"cp '{previewSrc}' '{previewFilePath}'")
                         # shutil.copy(previewSrc, previewFilePath)
                     except OSError as err:
                         logging.info(f"copying preview image failed: {err}")
