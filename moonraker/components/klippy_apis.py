@@ -234,7 +234,7 @@ class KlippyAPI(APITransport):
             "virtual_sdcard/set_autoload_bed_mesh", {'autoload_bed_mesh': autoload_bed_mesh}, default)
     
     async def _set_active_tension(self, web_request: WebRequest) -> str:
-        return await self.do_set_active_tension(web_request.get_boolean('tension'))
+        return await self.do_set_active_tension(web_request.get_str('tension'))
     async def do_set_active_tension(self, tension, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "resonance_tester/set_active_tension", {'tension': tension}, default)
