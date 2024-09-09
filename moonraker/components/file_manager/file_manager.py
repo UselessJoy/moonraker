@@ -320,7 +320,7 @@ class FileManager:
         if path != self.file_paths.get(root, ""):
             self.file_paths[root] = path
             self.server.register_static_file_handler(root, path)
-            if root == "gcodes" or root == "media":
+            if root == "gcodes":
                 # scan for metadata changes
                 self.gcode_metadata.update_gcode_path(path)
             if full_access:
@@ -845,7 +845,7 @@ class FileManager:
                 root = upload_info['root']
                 if root not in self.full_access_roots:
                     raise self.server.error(f"Invalid root request: {root}")
-                if (root == "gcodes" or root == "media") and upload_info['ext'] in VALID_GCODE_EXTS:
+                if root == "gcodes" and upload_info['ext'] in VALID_GCODE_EXTS:
                     result = await self._finish_gcode_upload(upload_info)
                 else:
                     result = await self._finish_standard_upload(upload_info)
@@ -1084,7 +1084,7 @@ class FileManager:
             for fileobj in flist['files']:
                 fname = fileobj['filename']
                 ext = os.path.splitext(fname)[-1].lower()
-                if (root == "gcodes" or root == "media") and ext in VALID_GCODE_EXTS:
+                if root == "gcodes" and ext in VALID_GCODE_EXTS:
                     simple_list.append(fname)
             return simple_list
         return flist
@@ -1369,7 +1369,7 @@ class BaseFileSystemObserver:
     def clear_metadata(
         self, root: str, path: str, is_dir: bool = False
     ) -> None:
-        if root == "gcodes" or root == "media":
+        if root == "gcodes":
             rel_path = self.file_manager.get_relative_path(root, str(path))
             if is_dir:
                 self.gcode_metadata.remove_directory_metadata(rel_path)
@@ -1640,7 +1640,7 @@ class InotifyNode:
             return
         file_path = os.path.join(self.get_path(), file_name)
         root = self.get_root()
-        if root == "gcodes" or root == "media":
+        if root == "gcodes":
             if self.iobsvr.need_create_notify(file_path):
                 async def _notify_file_write():
                     mevt = self.iobsvr.parse_gcode_metadata(file_path)
@@ -2106,7 +2106,7 @@ class InotifyObserver(BaseFileSystemObserver):
         elif evt.mask & iFlags.DELETE:
             logging.debug(f"Inotify file delete: {root}, "
                           f"{node_path}, {evt.name}")
-            if (root == "gcodes" or root == "media") and ext == ".ufp":
+            if root == "gcodes" and ext == ".ufp":
                 # Don't notify deleted ufp files
                 return
             node.schedule_child_delete(evt.name, False)
@@ -2128,7 +2128,7 @@ class InotifyObserver(BaseFileSystemObserver):
                 prev_root = prev_parent.get_root()
                 prev_path = os.path.join(prev_parent.get_path(), prev_name)
                 move_res = self.try_move_metadata(prev_root, root, prev_path, file_path)
-                if root == "gcodes" or root == "media":
+                if root == "gcodes":
                     coro = self._finish_gcode_move(
                         root, prev_root, file_path, prev_path, pending_node, move_res
                     )
@@ -2146,11 +2146,11 @@ class InotifyObserver(BaseFileSystemObserver):
                         f"notification: {file_path}"
                     )
                     pending_node.reset_event("create_node", INOTIFY_BUNDLE_TIME)
-                    if root == "gcodes" or root == "media":
+                    if root == "gcodes":
                         self.parse_gcode_metadata(file_path)
                     return
                 self.sync_lock.add_pending_path("create_file", file_path)
-                if root == "gcodes" or root == "media":
+                if root == "gcodes":
                     if self.need_create_notify(file_path):
                         coro = self._finish_gcode_create_from_move(file_path)
                         self.queue_gcode_notification(coro)
