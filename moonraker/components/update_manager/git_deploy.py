@@ -186,7 +186,7 @@ class GitDeploy(AppDeploy):
             self.repo.set_rollback_state(rb_state)
 
 
-GIT_ASYNC_TIMEOUT = 300.
+GIT_ASYNC_TIMEOUT = 100.
 GIT_ENV_VARS = {
     'GIT_HTTP_LOW_SPEED_LIMIT': "1000",
     'GIT_HTTP_LOW_SPEED_TIME ': "20"
@@ -406,7 +406,7 @@ class GitRepo:
                     " is not a valid git repo")
                 return False
             await self._wait_for_lock_release()
-            attempts = 3
+            attempts = 2
             resp: Optional[str] = None
             while attempts:
                 self.git_messages.clear()
@@ -640,7 +640,7 @@ class GitRepo:
                     f"Git Repo {self.alias}: Initialization failure")
 
     async def is_ancestor(
-        self, ancestor_ref: str, descendent_ref: str, attempts: int = 3
+        self, ancestor_ref: str, descendent_ref: str, attempts: int = 2
     ) -> bool:
         self._verify_repo()
         cmd = f"merge-base --is-ancestor {ancestor_ref} {descendent_ref}"
@@ -902,7 +902,7 @@ class GitRepo:
 
     async def run_fsck(self) -> None:
         async with self.git_operation_lock:
-            await self._run_git_cmd("fsck --full", timeout=300., attempts=1)
+            await self._run_git_cmd("fsck --full", timeout=100., attempts=1)
 
     async def clone(self) -> None:
         if self.is_submodule_or_worktree():
@@ -1158,7 +1158,7 @@ class GitRepo:
                 timeout=10., attempts=1, cwd=str(self.src_path))
             await self._run_git_cmd_async(
                 "fetch --all -p", attempts=1, fix_loose=False)
-            await self._run_git_cmd("fsck --full", timeout=300., attempts=1)
+            await self._run_git_cmd("fsck --full", timeout=100., attempts=1)
         except Exception:
             msg = (
                 "Attempt to repair loose objects failed, "
@@ -1175,7 +1175,7 @@ class GitRepo:
 
     async def _run_git_cmd_async(self,
                                  cmd: str,
-                                 attempts: int = 5,
+                                 attempts: int = 2,
                                  need_git_path: bool = True,
                                  fix_loose: bool = True
                                  ) -> None:
@@ -1264,7 +1264,7 @@ class GitRepo:
         self,
         git_args: str,
         timeout: float = 20.,
-        attempts: int = 5,
+        attempts: int = 2,
         env: Optional[Dict[str, str]] = None,
         corrupt_hdr: Optional[str] = None,
         log_complete: bool = True

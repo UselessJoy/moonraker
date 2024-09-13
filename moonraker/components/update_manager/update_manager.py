@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 import asyncio
+import socket
 import os
 import logging
 import time
@@ -169,6 +170,9 @@ class UpdateManager:
         )
         self.server.register_endpoint(
             "/machine/update/rollback", RequestType.POST, self._handle_rollback
+        )
+        self.server.register_endpoint(
+            "/machine/internet/connection", RequestType.POST, self._handle_connection
         )
         self.server.register_notification("update_manager:update_response")
         self.server.register_notification("update_manager:update_refreshed")
@@ -495,6 +499,23 @@ class UpdateManager:
             finally:
                 self.cmd_helper.clear_update_info()
         return "ok"
+    
+    async def _handle_connection(self, web_request: WebRequest) -> bool:
+        try:
+          host = socket.gethostbyname("one.one.one.one")
+          s = socket.create_connection((host, 80), 2)
+          s.close()
+          return True
+        except Exception as e:
+          logging.exception(f"Exception on internet_access: {e}")
+        try:
+          host = socket.gethostbyname("github.com")
+          s = socket.create_connection((host, 80), 2)
+          s.close()
+          return True
+        except Exception as e:
+          logging.exception(f"Exception on internet_access: {e}")
+        return False
 
     async def close(self) -> None:
         if self.refresh_timer is not None:

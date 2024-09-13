@@ -180,7 +180,7 @@ class AptCliProvider(BasePackageProvider):
 
     async def refresh_packages(self, notify: bool = False) -> None:
         await self.cmd_helper.run_cmd(
-            f"{self.APT_CMD} update", timeout=600., notify=notify)
+            f"{self.APT_CMD} update", timeout=300., notify=notify)
 
     async def get_packages(self) -> List[str]:
         shell_cmd = self.cmd_helper.get_shell_command()
@@ -196,7 +196,7 @@ class AptCliProvider(BasePackageProvider):
         search_regex = "|".join([f"^{pkg}$" for pkg in package_list])
         cmd = f"apt-cache search --names-only \"{search_regex}\""
         shell_cmd = self.cmd_helper.get_shell_command()
-        ret = await shell_cmd.exec_cmd(cmd, timeout=600.)
+        ret = await shell_cmd.exec_cmd(cmd, timeout=300.)
         resolved = [
             pkg.strip().split()[0] for pkg in ret.split("\n") if pkg.strip()
         ]
