@@ -161,9 +161,9 @@ class UpdateManager:
         self.server.register_endpoint(
             "/machine/update/full", RequestType.POST, self._handle_full_update_request
         )
-        self.server.register_endpoint(
-            "/machine/update/system", RequestType.POST, self._handle_system_update_request
-        )
+        # self.server.register_endpoint(
+        #     "/machine/update/system", RequestType.POST, self._handle_system_update_request
+        # )
         self.server.register_endpoint(
             "/machine/update/applications", RequestType.POST, self._handle_applications_update_request
         )
