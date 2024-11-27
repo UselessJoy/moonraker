@@ -106,9 +106,6 @@ class KlippyAPI(APITransport):
             "/printer/setwifimode", RequestType.POST, self._set_wifi_mode)
         
         self.server.register_endpoint(
-            "/printer/set_hotspot", RequestType.POST, self._set_hotspot)
-        
-        self.server.register_endpoint(
             "/printer/open_message", RequestType.POST, self._send_message)
         self.server.register_endpoint(
             "/printer/close_message", RequestType.POST, self._close_message)
@@ -184,12 +181,6 @@ class KlippyAPI(APITransport):
     async def off_heaters(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "heaters/turn_off_heaters", {}, default)
-    
-    async def _set_hotspot(self, web_request: WebRequest) -> str:
-        return await self.do_set_hotspot(web_request.get_str('hotspot'))
-    async def do_set_hotspot(self, hotspot, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
-        return await self._send_klippy_request(
-            "wifi_mode/set_hotspot", {'hotspot': hotspot}, default)
         
     async def _set_wifi_mode(self, web_request: WebRequest) -> str:
         return await self.do_set_wifi_mode(web_request.get_str('wifi_mode'))

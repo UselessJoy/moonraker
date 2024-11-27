@@ -12,6 +12,8 @@ import logging
 import time
 import tempfile
 import pathlib
+
+from moonraker.utils import ServerError
 from .common import AppType, get_base_configuration, get_app_type
 from .base_deploy import BaseDeploy
 from .app_deploy import AppDeploy
@@ -160,6 +162,12 @@ class UpdateManager:
             "/machine/update/full", RequestType.POST, self._handle_full_update_request
         )
         self.server.register_endpoint(
+            "/machine/update/system", RequestType.POST, self._handle_system_update_request
+        )
+        self.server.register_endpoint(
+            "/machine/update/applications", RequestType.POST, self._handle_applications_update_request
+        )
+        self.server.register_endpoint(
             "/machine/update/status", RequestType.GET, self._handle_status_request
         )
         self.server.register_endpoint(
@@ -167,6 +175,9 @@ class UpdateManager:
         )
         self.server.register_endpoint(
             "/machine/update/recover", RequestType.POST, self._handle_repo_recovery
+        )
+        self.server.register_endpoint(
+            "/machine/update/recover_needed", RequestType.POST, self._handle_recover_needed
         )
         self.server.register_endpoint(
             "/machine/update/rollback", RequestType.POST, self._handle_rollback
@@ -311,26 +322,28 @@ class UpdateManager:
                 self.cmd_helper.clear_update_info()
         return "ok"
 
-    async def _handle_full_update_request(self,
-                                          web_request: WebRequest
-                                          ) -> str:
+    async def _handle_system_update_request(self, web_request: WebRequest) -> str:
+      if 'system' in self.updaters:
+        await self.updaters['system'].update()
+      return "ok"
+    
+    async def _handle_full_update_request(self, web_requsest: WebRequest) -> str:
+        self._handle_system_update_request(web_requsest)
+        self._handle_applications_update_request(web_requsest)
+        return "ok"
+    
+    async def _handle_applications_update_request(self, web_request: WebRequest) -> str:
         async with self.cmd_request_lock:
             app_name = ""
             self.cmd_helper.set_update_info('full', id(web_request))
             self.cmd_helper.notify_update_response(
                 "Preparing full software update...")
             try:
-                # Perform system updates
-                if 'system' in self.updaters:
-                    app_name = 'system'
-                    await self.updaters['system'].update()
-
                 # Update clients
                 for name, updater in self.updaters.items():
-                    if name in ['klipper', 'moonraker', 'system']:
-                        continue
-                    app_name = name
-                    await updater.update()
+                    if name not in ['klipper', 'moonraker', 'system']:
+                      app_name = name
+                      await updater.update()
 
                 # Update Klipper
                 app_name = 'klipper'
@@ -372,6 +385,37 @@ class UpdateManager:
             finally:
                 self.cmd_helper.clear_update_info()
             return "ok"
+        
+    async def _handle_recover_needed(self, web_request: WebRequest) -> str:
+      if self.kconn.is_printing():
+          raise self.server.error(
+              "Recovery Attempt Refused: Klippy is printing")
+      apps = web_request.get_dict('apps', {})
+      for app in apps:
+          hard = apps[app]['hard']
+          update_deps = apps[app]['update_deps']
+          updater = self.updaters.get(app, None)
+          try:
+            if updater is None:
+                raise self.server.error(f"Updater {app} not available", 404)
+            elif not isinstance(updater, GitDeploy):
+                raise self.server.error(f"Upater {app} is not a Git Repo Type")
+          except ServerError as e:
+              logging.error(e)
+              continue
+          async with self.cmd_request_lock:
+              self.cmd_helper.set_update_info(f"recover_{app}", id(web_request))
+              try:
+                  await updater.recover(hard, update_deps)
+              except Exception as e:
+                  self.cmd_helper.notify_update_response(
+                      f"Error Recovering {app}")
+                  self.cmd_helper.notify_update_response(
+                      str(e), is_complete=True)
+                  raise
+              finally:
+                  self.cmd_helper.clear_update_info()
+      return "ok"
 
     async def _handle_status_request(self,
                                      web_request: WebRequest

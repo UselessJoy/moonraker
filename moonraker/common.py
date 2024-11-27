@@ -602,6 +602,12 @@ class WebRequest:
                     default: Union[Sentinel, _T] = Sentinel.MISSING
                     ) -> Union[bool, _T]:
         return self._get_converted_arg(key, default, bool)
+    
+    def get_dict(self,
+                 key: str,
+                 default: Union[Sentinel, _T] = Sentinel.MISSING
+                ) -> Union[dict, _T]:
+        return self._get_converted_arg(key, default, dict)
 
     def _parse_list(
         self,
