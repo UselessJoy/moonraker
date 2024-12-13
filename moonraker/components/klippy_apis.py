@@ -70,6 +70,9 @@ class KlippyAPI(APITransport):
         self.server.register_endpoint(
             "/printer/firmware_restart", RequestType.POST, self._gcode_firmware_restart
         )
+        self.server.register_endpoint(
+            "/printer/load_backup_config", RequestType.POST, self._load_backup_config
+        )
         self.server.register_event_handler(
             "server:klippy_disconnect", self._on_klippy_disconnect
         )
@@ -169,37 +172,43 @@ class KlippyAPI(APITransport):
     async def open_message(self, message_type, message, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "messages/open_message", {'message_type': message_type, 'message': message}, default)
-    
+
     async def _close_message(self, web_request: WebRequest) -> str:
         return await self.close_message()
     async def close_message(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "messages/close_message", {}, default)
-        
+
     async def _turn_off_heaters(self, web_request: WebRequest) -> str:
         return await self.off_heaters()
     async def off_heaters(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "heaters/turn_off_heaters", {}, default)
-        
+
+    async def _load_backup_config(self, web_request: WebRequest) -> str:
+        return await self.load_backup_config()
+    async def load_backup_config(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "configfile/load_backup_config", {}, default)
+
     async def _set_wifi_mode(self, web_request: WebRequest) -> str:
         return await self.do_set_wifi_mode(web_request.get_str('wifi_mode'))
     async def do_set_wifi_mode(self, wifi_mode, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "wifi_mode/set_wifi_mode", {'wifi_mode': wifi_mode}, default)
-        
+
     async def _set_auto_off(self, web_request: WebRequest) -> str:
         return await self.do_set_auto_off(web_request.get_boolean('autoOff_enable'))
     async def do_set_auto_off(self, enable, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "autooff/set_auto_off", {'autoOff_enable': enable}, default)
-        
+
     async def _set_klipper_lang(self, web_request: WebRequest) -> str:
         return await self.do_set_klipper_lang(web_request.get_str('lang'))
     async def do_set_klipper_lang(self, lang, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "locale/set_lang", {'lang': lang}, default)
-    
+
     async def _set_safety_printing(self, web_request: WebRequest) -> str:
         return await self.do_set_safety_printing(web_request.get_boolean('safety_enabled'))
     async def do_set_safety_printing(self, safety, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
@@ -211,51 +220,51 @@ class KlippyAPI(APITransport):
     async def do_set_quite_mode(self, stepper, quite_mode, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             f"tmc/set_quite_mode/{stepper}", {'quite_mode': quite_mode}, default)
-        
+
     async def _set_watch_bed_mesh(self, web_request: WebRequest) -> str:
         return await self.do_set_watch_bed_mesh(web_request.get_boolean('watch_bed_mesh'))
     async def do_set_watch_bed_mesh(self, watch_bed_mesh, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "virtual_sdcard/set_watch_bed_mesh", {'watch_bed_mesh': watch_bed_mesh}, default)
-    
+
     async def _set_autoload_bed_mesh(self, web_request: WebRequest) -> str:
         return await self.do_set_autoload_bed_mesh(web_request.get_boolean('autoload_bed_mesh'))
     async def do_set_autoload_bed_mesh(self, autoload_bed_mesh, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "virtual_sdcard/set_autoload_bed_mesh", {'autoload_bed_mesh': autoload_bed_mesh}, default)
-    
+
     async def _set_active_tension(self, web_request: WebRequest) -> str:
         return await self.do_set_active_tension(web_request.get_str('tension'))
     async def do_set_active_tension(self, tension, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "resonance_tester/set_active_tension", {'tension': tension}, default)
-    
+
     async def _stop_pid_calibrate(self, web_request: WebRequest) -> str:
         return await self.do_stop_pid_calibrate()
     async def do_stop_pid_calibrate(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "pid_calibrate/stop_pid_calibrate", {}, default)
-    
+
     async def _off_auto_off(self, web_request: WebRequest) -> str:
         return await self.do_off_auto_off()
     async def do_off_auto_off(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "autooff/off_autooff", {}, default)
-    
+
     async def _run_async_command(self, web_request: WebRequest) -> str:
         return await self.do_run_async_command(web_request.get_str('command'))
     async def do_run_async_command(self, command, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         params = {'command': command}
         return await self._send_klippy_request(
             ASYNC_COMMAND_ENDPOINT, params, default)
-        
+
     async def _resonance_tester_action(self, web_request: WebRequest) -> str:
         return await self.do_resonance_tester_action(web_request.get_str('action'), web_request.get_list('args'))
     async def do_resonance_tester_action(self, action, args, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         params = {'action': action, 'args': args}
         return await self._send_klippy_request(
             "resonance_tester/shaper_graph", params, default)
-    
+
     async def do_rebuild(
         self, gc: str, wait_klippy_started: bool = False
     ) -> str:
@@ -270,7 +279,7 @@ class KlippyAPI(APITransport):
             await self.run_gcode(gc)
         except:
                 raise
-        
+
     async def _gcode_remove(self, web_request: WebRequest) -> str:
         await self.do_remove("SDCARD_REMOVE_FILE")
 
@@ -283,19 +292,18 @@ class KlippyAPI(APITransport):
             await self.run_gcode(gc)
         except:
             raise   
-    
+
     async def get_screw_image(self, web_request:WebRequest) -> str:
         result = await self.run_gcode("GET_SCREW_IMAGE")
         return result
-    
+
     async def get_neopixel_color(self, neopixel: str) -> str:
         return await self.run_gcode(f'GET_COLOR NEOPIXEL="{neopixel}"')
-    
+
     async def save_default_neopixel_color(self, neopixel: str, r: float, g: float, b: float) -> str:
         script = f'SAVE_DEFAULT_COLOR NEOPIXEL="{neopixel}" RED="{r}" GREEN="{g}" BLUE="{b}"'
         return await self.run_gcode(script)
     ####    END NEW    ####
-
 
     async def _send_klippy_request(
         self,
