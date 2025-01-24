@@ -344,7 +344,7 @@ class UpdateManager:
         updating_names.append('moonraker')
         logging.info(f"create list of applications: {updating_names}")
         try:
-          self.__update_sorted_applications(web_request, updating_names)
+          self._update_sorted_applications(web_request, updating_names)
           self.cmd_helper.set_full_complete(True)
           self.cmd_helper.notify_update_response("Full Update Complete", is_complete=True)
         except Exception as e:
@@ -355,7 +355,7 @@ class UpdateManager:
             self.cmd_helper.clear_update_info()
         return "ok"
     
-    async def __update_sorted_applications(self, web_request: WebRequest, apps: list[str]) -> str:
+    async def _update_sorted_applications(self, web_request: WebRequest, apps: list[str]) -> str:
         for app in apps:
             if self.cmd_helper.is_app_updating(app):
               self.cmd_helper.notify_update_response(
