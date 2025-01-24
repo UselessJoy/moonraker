@@ -335,71 +335,42 @@ class UpdateManager:
     async def _handle_applications_update_request(self, web_request: WebRequest) -> str:
         if self.kconn.is_printing():
           raise self.server.error("Update Refused: Klippy is printing")
-        async with self.cmd_request_lock:
-            app_name = ""
-            self.cmd_helper.set_update_info('full', id(web_request))
-            self.cmd_helper.notify_update_response(
-                "Preparing full software update...")
-            try:
-                # Update clients
-                for name, updater in self.updaters.items():
-                    if name not in ['klipper', 'moonraker', 'system']:
-                      app_name = name
-                      if self.cmd_helper.is_app_updating(app_name):
-                          self.cmd_helper.notify_update_response(
-                              f"Object {app_name} is currently being updated")
-                          continue
-                      self.cmd_helper.set_update_info(app_name, id(web_request))
-                      try:
-                        await updater.update()
-                      except Exception as e:
-                          self.cmd_helper.notify_update_response(
-                              f"Error updating {app_name}: {e}", is_complete=True)
-                          raise
-                      finally:
-                          self.cmd_helper.clear_update_info()
+        updating_names: list[str] = []
+        for name in self.updaters.keys():
+            if name not in ['klipper', 'moonraker', 'system']:
+                updating_names.append(name)
+        updating_names.append('klipper')
+        updating_names.append('moonraker')
+        try:
+          self.__update_sorted_applications(web_request, updating_names)
+          self.cmd_helper.set_full_complete(True)
+          self.cmd_helper.notify_update_response("Full Update Complete", is_complete=True)
+        except Exception as e:
+          self.cmd_helper.set_full_complete(True)
+          self.cmd_helper.notify_update_response(
+              f"Error on full updating: {e}", is_complete=True)
+        finally:
+            self.cmd_helper.clear_update_info()
+        return "ok"
+    
+    async def __update_sorted_applications(self, web_request: WebRequest, apps: list[str]) -> str:
+        for app in apps:
+            if self.cmd_helper.is_app_updating(app):
+              self.cmd_helper.notify_update_response(
+                  f"Object {app} is currently being updated")
+              continue
+            updater = self.updaters.get(app, None)
+            if updater is None:
+                raise self.server.error(f"Updater {app} not available", 404)
+            async with self.cmd_request_lock:
+                self.cmd_helper.set_update_info(app, id(web_request))
+                try:
+                    await updater.update()
+                except Exception as e:
+                    self.cmd_helper.notify_update_response(
+                        f"Error updating {app}: {e}", is_complete=True)
+                    raise
 
-                # Update Klipper
-                app_name = 'klipper'
-                kupdater = self.updaters.get('klipper')
-                if isinstance(kupdater, AppDeploy):
-                    self.klippy_identified_evt = asyncio.Event()
-                    check_restart = await kupdater.update()
-                    if self.cmd_helper.needs_service_restart(app_name):
-                        await kupdater.restart_service()
-                        check_restart = True
-                    if check_restart:
-                        self.cmd_helper.notify_update_response(
-                            "Waiting for Klippy to reconnect (this may take"
-                            " up to 2 minutes)...")
-                        try:
-                            await asyncio.wait_for(
-                                self.klippy_identified_evt.wait(), 120.)
-                        except asyncio.TimeoutError:
-                            self.cmd_helper.notify_update_response(
-                                "Klippy reconnect timed out...")
-                        else:
-                            self.cmd_helper.notify_update_response(
-                                "Klippy Reconnected")
-                        self.klippy_identified_evt = None
-
-                # Update Moonraker
-                app_name = 'moonraker'
-                moon_updater = cast(AppDeploy, self.updaters["moonraker"])
-                await moon_updater.update()
-                if self.cmd_helper.needs_service_restart(app_name):
-                    await moon_updater.restart_service()
-                self.cmd_helper.set_full_complete(True)
-                self.cmd_helper.notify_update_response(
-                    "Full Update Complete", is_complete=True)
-            except Exception as e:
-                self.cmd_helper.set_full_complete(True)
-                self.cmd_helper.notify_update_response(
-                    f"Error updating {app_name}: {e}", is_complete=True)
-            finally:
-                self.cmd_helper.clear_update_info()
-            return "ok"
-        
     async def _handle_recover_needed(self, web_request: WebRequest) -> str:
       if self.kconn.is_printing():
           raise self.server.error(
