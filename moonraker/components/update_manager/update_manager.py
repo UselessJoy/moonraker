@@ -333,6 +333,7 @@ class UpdateManager:
         return "ok"
     
     async def _handle_applications_update_request(self, web_request: WebRequest) -> str:
+        logging.info("in updating applications")
         if self.kconn.is_printing():
           raise self.server.error("Update Refused: Klippy is printing")
         updating_names: list[str] = []
@@ -341,6 +342,7 @@ class UpdateManager:
                 updating_names.append(name)
         updating_names.append('klipper')
         updating_names.append('moonraker')
+        logging.info(f"create list of applications: {updating_names}")
         try:
           self.__update_sorted_applications(web_request, updating_names)
           self.cmd_helper.set_full_complete(True)
@@ -365,6 +367,7 @@ class UpdateManager:
             async with self.cmd_request_lock:
                 self.cmd_helper.set_update_info(app, id(web_request))
                 try:
+                    logging.info(f"updating: {app}")
                     await updater.update()
                 except Exception as e:
                     self.cmd_helper.notify_update_response(
