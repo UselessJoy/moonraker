@@ -333,7 +333,6 @@ class UpdateManager:
         return "ok"
     
     async def _handle_applications_update_request(self, web_request: WebRequest) -> str:
-        logging.info("starting update")
         async with self.cmd_request_lock:
             app_name = ""
             self.cmd_helper.set_update_info('full', id(web_request))
@@ -344,7 +343,6 @@ class UpdateManager:
                 for name, updater in self.updaters.items():
                     if name not in ['klipper', 'moonraker', 'system']:
                       app_name = name
-                      logging.info(f"Updating non-standart app {name}")
                       await updater.update()
 
                 # Update Klipper
@@ -352,7 +350,6 @@ class UpdateManager:
                 kupdater = self.updaters.get('klipper')
                 if isinstance(kupdater, AppDeploy):
                     self.klippy_identified_evt = asyncio.Event()
-                    logging.info(f"updating klipper")
                     check_restart = await kupdater.update()
                     if self.cmd_helper.needs_service_restart(app_name):
                         await kupdater.restart_service()
@@ -375,7 +372,6 @@ class UpdateManager:
                 # Update Moonraker
                 app_name = 'moonraker'
                 moon_updater = cast(AppDeploy, self.updaters["moonraker"])
-                logging.info(f"updating moonraker")
                 await moon_updater.update()
                 if self.cmd_helper.needs_service_restart(app_name):
                     await moon_updater.restart_service()
