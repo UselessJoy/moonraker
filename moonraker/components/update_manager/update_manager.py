@@ -355,21 +355,25 @@ class UpdateManager:
             self.cmd_helper.clear_update_info()
         return "ok"
     
-    async def _update_sorted_applications(self, web_request: WebRequest, apps: list[str]) -> str:
+    async def _update_sorted_applications(self, web_request: WebRequest, apps: list[str]) -> None:
         for app in apps:
             if self.cmd_helper.is_app_updating(app):
+              logging.info(f"Object {app} is currently being updated")
               self.cmd_helper.notify_update_response(
                   f"Object {app} is currently being updated")
               continue
             updater = self.updaters.get(app, None)
             if updater is None:
+                logging.info(f"Updater {app} not available")
                 raise self.server.error(f"Updater {app} not available", 404)
             async with self.cmd_request_lock:
+                logging.info(f"Setting update info for {app}")
                 self.cmd_helper.set_update_info(app, id(web_request))
                 try:
                     logging.info(f"updating: {app}")
                     await updater.update()
                 except Exception as e:
+                    logging.info(f"Error updating {app}: {e}")
                     self.cmd_helper.notify_update_response(
                         f"Error updating {app}: {e}", is_complete=True)
                     raise
