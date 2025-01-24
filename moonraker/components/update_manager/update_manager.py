@@ -333,6 +333,8 @@ class UpdateManager:
         return "ok"
     
     async def _handle_applications_update_request(self, web_request: WebRequest) -> str:
+        if self.kconn.is_printing():
+          raise self.server.error("Update Refused: Klippy is printing")
         async with self.cmd_request_lock:
             app_name = ""
             self.cmd_helper.set_update_info('full', id(web_request))
@@ -343,7 +345,19 @@ class UpdateManager:
                 for name, updater in self.updaters.items():
                     if name not in ['klipper', 'moonraker', 'system']:
                       app_name = name
-                      await updater.update()
+                      if self.cmd_helper.is_app_updating(app_name):
+                          self.cmd_helper.notify_update_response(
+                              f"Object {app_name} is currently being updated")
+                          continue
+                      self.cmd_helper.set_update_info(app_name, id(web_request))
+                      try:
+                        await updater.update()
+                      except Exception as e:
+                          self.cmd_helper.notify_update_response(
+                              f"Error updating {app_name}: {e}", is_complete=True)
+                          raise
+                      finally:
+                          self.cmd_helper.clear_update_info()
 
                 # Update Klipper
                 app_name = 'klipper'
