@@ -333,7 +333,6 @@ class UpdateManager:
         return "ok"
     
     async def _handle_applications_update_request(self, web_request: WebRequest) -> str:
-        logging.info("in updating applications")
         if self.kconn.is_printing():
           raise self.server.error("Update Refused: Klippy is printing")
         updating_names: list[str] = []
@@ -342,7 +341,6 @@ class UpdateManager:
                 updating_names.append(name)
         updating_names.append('klipper')
         updating_names.append('moonraker')
-        logging.info(f"create list of applications: {updating_names}")
         try:
           await self._update_sorted_applications(web_request, updating_names)
           self.cmd_helper.set_full_complete(True)
@@ -358,22 +356,17 @@ class UpdateManager:
     async def _update_sorted_applications(self, web_request: WebRequest, apps: list[str]) -> None:
         for app in apps:
             if self.cmd_helper.is_app_updating(app):
-              logging.info(f"Object {app} is currently being updated")
               self.cmd_helper.notify_update_response(
                   f"Object {app} is currently being updated")
               continue
             updater = self.updaters.get(app, None)
             if updater is None:
-                logging.info(f"Updater {app} not available")
                 raise self.server.error(f"Updater {app} not available", 404)
             async with self.cmd_request_lock:
-                logging.info(f"Setting update info for {app}")
                 self.cmd_helper.set_update_info(app, id(web_request))
                 try:
-                    logging.info(f"updating: {app}")
                     await updater.update()
                 except Exception as e:
-                    logging.info(f"Error updating {app}: {e}")
                     self.cmd_helper.notify_update_response(
                         f"Error updating {app}: {e}", is_complete=True)
                     raise
@@ -383,7 +376,6 @@ class UpdateManager:
           raise self.server.error(
               "Recovery Attempt Refused: Klippy is printing")
       apps = web_request.get_dict('apps', {})
-      logging.info(f"get apps: {apps}")
       for app in apps:
           hard = apps[app]['hard']
           update_deps = apps[app]['update_deps']
@@ -399,7 +391,6 @@ class UpdateManager:
           async with self.cmd_request_lock:
               self.cmd_helper.set_update_info(f"recover_{app}", id(web_request))
               try:
-                logging.info(f"try recover app: {app}")
                 await updater.recover(hard, update_deps)
               except Exception as e:
                   self.cmd_helper.notify_update_response(
