@@ -78,8 +78,9 @@ class KlippyAPI(APITransport):
         )
         ####      NEW      ####
         self.server.register_endpoint(
+            "/printer/check_backup", RequestType.POST, self._check_backup)
+        self.server.register_endpoint(
             "/printer/print/rebuild", RequestType.POST, self._gcode_rebuild)
-        
         self.server.register_endpoint(
             "/printer/print/remove", RequestType.POST, self._gcode_remove)
         self.server.register_endpoint(
@@ -184,6 +185,12 @@ class KlippyAPI(APITransport):
     async def off_heaters(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "heaters/turn_off_heaters", {}, default)
+
+    async def _check_backup(self, web_request: WebRequest) -> str:
+        return await self.check_backup()
+    async def check_backup(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "configfile/check_backup", {}, default)
 
     async def _load_backup_config(self, web_request: WebRequest) -> str:
         return await self.load_backup_config()
