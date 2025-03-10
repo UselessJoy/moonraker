@@ -128,6 +128,12 @@ class KlippyAPI(APITransport):
         
         self.server.register_endpoint(
             "/printer/pid_calibrate/stop_pid_calibrate", RequestType.POST, self._stop_pid_calibrate)
+        
+        self.server.register_endpoint(
+            "/printer/fixing/repeat_update", RequestType.POST, self._repeat_update)
+        
+        self.server.register_endpoint(
+            "/printer/fixing/close_dialog", RequestType.POST, self._close_dialog)
         ####    END NEW    ####
     def _on_klippy_disconnect(self) -> None:
             self.host_subscription.clear()
@@ -257,6 +263,18 @@ class KlippyAPI(APITransport):
     async def do_off_auto_off(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "autooff/off_autooff", {}, default)
+
+    async def _repeat_update(self, web_request: WebRequest) -> str:
+        return await self.do_repeat_update()
+    async def do_repeat_update(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "fixing/repeat_update", {}, default)
+
+    async def _close_dialog(self, web_request: WebRequest) -> str:
+        return await self.do_close_dialog()
+    async def do_close_dialog(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "fixing/close_dialog", {}, default)
 
     async def _run_async_command(self, web_request: WebRequest) -> str:
         return await self.do_run_async_command(web_request.get_str('command'))

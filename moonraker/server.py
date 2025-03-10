@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 import pathlib
+import threading
 import sys
 import argparse
 import importlib
@@ -64,7 +65,6 @@ CORE_COMPONENTS = [
     'proc_stats', 'job_state', 'job_queue', 'history',
     'http_client', 'announcements', 'webcam', 'extensions'
 ]
-
 
 class Server:
     error = ServerError
@@ -268,6 +268,13 @@ class Server:
 
         config.validate_config()
         self._is_configured = True
+    def load_long_component(self, component):
+        try:
+          thread = threading.Thread(target=self.load_component, args=(self.config, component))
+          thread.start()
+        except Exception as e:
+            logging.error(e)
+        
 
     def load_component(
         self,
@@ -277,11 +284,13 @@ class Server:
     ) -> Union[_T, Any]:
         if component_name in self.components:
             return self.components[component_name]
-        if self.is_configured():
+        if self.is_configured() and component_name != 'bot':
+            logging.error(f"Cannot load components after configuration")
             raise self.error(
                 "Cannot load components after configuration", 500
             )
         if component_name in self.failed_components:
+            logging.error(f"Component {component_name} previously failed to load")
             raise self.error(
                 f"Component {component_name} previously failed to load", 500
             )
@@ -301,7 +310,7 @@ class Server:
                 if self.try_pip_recovery(e.name or "unknown"):
                     return self.load_component(config, component_name, default)
             msg = f"Unable to load component: ({component_name})"
-            logging.exception(msg)
+            logging.error(msg)
             if component_name not in self.failed_components:
                 self.failed_components.append(component_name)
             if default is Sentinel.MISSING:
@@ -654,6 +663,7 @@ def main(from_package: bool = True) -> None:
         try:
             server = Server(app_args, log_manager, event_loop)
             server.load_components()
+            server.load_long_component('bot')
         except confighelper.ConfigError as e:
             backup_cfg = confighelper.find_config_backup(cfg_file)
             logging.exception("Server Config Error")

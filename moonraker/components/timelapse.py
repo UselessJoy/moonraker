@@ -58,7 +58,6 @@ class Timelapse:
         self.klippy_apis: APIComp = self.server.lookup_component('klippy_apis')
         self.database: DBComp = self.server.lookup_component("database")
         file_manager: FMComp = self.server.lookup_component('file_manager')
-
         if os.path.isdir(str(file_manager.datapath.joinpath('mmcblk0p1'))):
           parent_dir = str(file_manager.datapath.joinpath('mmcblk0p1'))
         else:
@@ -97,18 +96,24 @@ class Timelapse:
             'hyperlapse_cycle': 30,
             'autorender': True,
             'constant_rate_factor': 23,
+            'constant_rate_factor_min': 1,
+            'constant_rate_factor_max': 60,
             'output_framerate': 30,
+            'output_framerate_min': 5,
+            'output_framerate_max': 60,
             'pixelformat': "yuv420p",
             'time_format_code': "%Y%m%d_%H%M",
             'extraoutputparams': "",
-            'variable_fps': False,
             'targetlength': 10,
+            'variable_fps': False,
             'variable_fps_min': 5,
             'variable_fps_max': 60,
             'rotation': 0,
             'flip_x': False,
             'flip_y': False,
             'duplicatelastframe': 5,
+            'duplicatelastframe_min': 0,
+            'duplicatelastframe_max': 15,
             'previewimage': True,
             'saveframes': False,
             'deleteframes': False # Пока не реализовано (мб и не нужна вообще), но должна удалять фреймы при рендере (cleanup удаляет все кадры в директории в начале печати)
@@ -401,6 +406,10 @@ class Timelapse:
             logging.exception(msg)
 
     def call_newframe(self, macropark=False, hyperlapse=False) -> None:
+        file_manager: FMComp = self.server.lookup_component('file_manager')
+        if file_manager.get_root_usage('timelapse')['disk_usage']['free'] < 250 * 1024 * 1024:
+            logging.exception("To few memory")
+            return
         if self.config['enabled']:
             if self.config['mode'] == "hyperlapse":
                 if hyperlapse:
@@ -473,7 +482,7 @@ class Timelapse:
             logging.exception(msg)
         self.hyperlapserunning = False
 
-    async def webrequest_oldframe(self, web_request: WebRequest) -> None: 
+    async def webrequest_oldframe(self, web_request: WebRequest) -> dict: 
       list_frames = os.listdir(self.temp_dir)
       if len(list_frames):
         self.framecount = len(list_frames)
