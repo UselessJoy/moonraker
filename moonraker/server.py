@@ -268,13 +268,14 @@ class Server:
 
         config.validate_config()
         self._is_configured = True
-    def load_long_component(self, component):
+    async def load_long_component(self, component):
+        if component in self.components:
+            return
         try:
-          thread = threading.Thread(target=self.load_component, args=(self.config, component))
-          thread.start()
+          config = self.config
+          self.load_component(config, component)
         except Exception as e:
-            logging.error(e)
-        
+          logging.error(e)
 
     def load_component(
         self,
@@ -663,7 +664,7 @@ def main(from_package: bool = True) -> None:
         try:
             server = Server(app_args, log_manager, event_loop)
             server.load_components()
-            server.load_long_component('bot')
+            asyncio.run(server.load_long_component('bot'))
         except confighelper.ConfigError as e:
             backup_cfg = confighelper.find_config_backup(cfg_file)
             logging.exception("Server Config Error")
