@@ -102,7 +102,7 @@ class Timelapse:
             'output_framerate_min': 5,
             'output_framerate_max': 60,
             'pixelformat': "yuv420p",
-            'time_format_code': "%Y%m%d_%H%M",
+            'time_format_code': "%Y%m%d_%H%M%S",
             'extraoutputparams': "",
             'targetlength': 10,
             'variable_fps': False,
@@ -132,7 +132,8 @@ class Timelapse:
         # this is a fallback to older setups and when the Frontend doesn't
         # support the settings endpoint
         self.overwriteDbconfigWithConfighelper()
-
+        #Да, тупая перезапись, иначе заебешься выдумывать, как это поправить на всех машинах
+        self.config['time_format_code'] = "%Y%m%d_%H%M%S"
         # check if ffmpeg is installed
         self.ffmpeg_installed = os.path.isfile(self.ffmpeg_binary_path)
         if not self.ffmpeg_installed:
@@ -371,7 +372,10 @@ class Timelapse:
             if gcodechange:
                 ioloop = IOLoop.current()
                 ioloop.spawn_callback(self.setgcodevariables)
-
+        #Чтобы set можно было спокойно перехватить через KS
+        result = {'action': 'settings'}
+        result.update(self.config)
+        self.notify_event(result)
         return self.config
 
     async def handle_klippy_ready(self) -> None:
@@ -742,7 +746,7 @@ class Timelapse:
                 cmdstatus = await scmd.run(verbose=True,
                                            log_complete=False,
                                            timeout=9999999999,
-                                           )
+                )
             except Exception:
                 logging.exception(f"Error running cmd '{cmd}'")
 

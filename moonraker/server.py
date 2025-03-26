@@ -7,12 +7,12 @@
 
 from __future__ import annotations
 import pathlib
-import threading
 import sys
 import argparse
 import importlib
 import os
 import io
+import threading
 import time
 import socket
 import logging
@@ -188,8 +188,7 @@ class Server:
                 await self._initialize_component(name, component)
             else:
                 optional_comps.append(
-                    self._initialize_component(name, component))
-
+                    self._initialize_component(name, component))            
         # Asynchronous Optional Component Initialization
         if optional_comps:
             await asyncio.gather(*optional_comps)
@@ -268,12 +267,12 @@ class Server:
 
         config.validate_config()
         self._is_configured = True
-    async def load_long_component(self, component):
+    def load_long_component(self, component):
         if component in self.components:
             return
         try:
-          config = self.config
-          self.load_component(config, component)
+          thread = threading.Thread(target=self.load_component, args=(self.config, component))
+          thread.start()
         except Exception as e:
           logging.error(e)
 
@@ -436,6 +435,7 @@ class Server:
 
     async def _stop_server(self, exit_reason: str = "restart") -> None:
         self.server_running = False
+        # time.sleep(0.1)
         # Call each component's "on_exit" method
         for name, component in self.components.items():
             if hasattr(component, "on_exit"):
@@ -664,7 +664,7 @@ def main(from_package: bool = True) -> None:
         try:
             server = Server(app_args, log_manager, event_loop)
             server.load_components()
-            asyncio.run(server.load_long_component('bot'))
+            server.load_long_component('bot')
         except confighelper.ConfigError as e:
             backup_cfg = confighelper.find_config_backup(cfg_file)
             logging.exception("Server Config Error")
