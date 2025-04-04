@@ -843,7 +843,7 @@ class FileManager:
         async with self.sync_lock:
             try:
                 upload_info = self._parse_upload_args(form_args)
-                if self.get_root_usage(upload_info['root'])['disk_usage']['free'] < 250 * 1024 * 1024:
+                if self.get_root_usage(upload_info['root'])['disk_usage']['free'] < 50 * 1024 * 1024:
                     raise self.server.error(
                           "To few free memory")
                 self.check_reserved_path(upload_info["dest_path"], True)
