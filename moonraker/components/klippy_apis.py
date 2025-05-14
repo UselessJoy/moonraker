@@ -98,6 +98,9 @@ class KlippyAPI(APITransport):
             "/printer/setSafetyPrinting", RequestType.POST, self._set_safety_printing)
         
         self.server.register_endpoint(
+            "/printer/set_nozzle_diameter", RequestType.POST, self._set_nozzle_diameter)
+        
+        self.server.register_endpoint(
             "/printer/setQuiteMode", RequestType.POST, self._set_quite_mode)
         
         self.server.register_endpoint(
@@ -134,6 +137,11 @@ class KlippyAPI(APITransport):
         
         self.server.register_endpoint(
             "/printer/fixing/close_dialog", RequestType.POST, self._close_dialog)
+        
+        self.server.register_endpoint(
+            "/printer/heaters/test_temperature", RequestType.POST, self._test_heating)
+        self.server.register_endpoint(
+            "/printer/magnet_probe/test_magnet_probe", RequestType.POST, self._test_magnet_probe)
         ####    END NEW    ####
     def _on_klippy_disconnect(self) -> None:
             self.host_subscription.clear()
@@ -227,6 +235,14 @@ class KlippyAPI(APITransport):
     async def do_set_safety_printing(self, safety, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "safety_printing/set_safety_printing", {'safety_enabled': safety}, default)
+    
+    async def _set_nozzle_diameter(self, web_request: WebRequest) -> str:
+        return await self.do_set_nozzle_diameter(web_request.get_float('nozzle_diameter'))
+    async def do_set_nozzle_diameter(self, nozzle_diameter, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "extruder/set_nozzle_diameter", {'nozzle_diameter': nozzle_diameter}, default)
+
+    
 
     async def _set_quite_mode(self, web_request: WebRequest) -> str:
         return await self.do_set_quite_mode(web_request.get_str('stepper'), web_request.get_boolean('quite_mode'))
@@ -289,6 +305,18 @@ class KlippyAPI(APITransport):
         params = {'action': action, 'args': args}
         return await self._send_klippy_request(
             "resonance_tester/shaper_graph", params, default)
+    
+    async def _test_heating(self, web_request: WebRequest) -> str:
+      return await self.do_test_heating(web_request.get_str('heater'))
+    async def do_test_heating(self, heater, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        params = {'heater': heater}
+        return await self._send_klippy_request(
+            "heaters/test_temperature", params, default)
+    async def _test_magnet_probe(self, web_request: WebRequest) -> str:
+      return await self.do_test_magent_probe()
+    async def do_test_magent_probe(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "magnet_probe/test_magnet_probe", {}, default)
 
     async def do_rebuild(
         self, gc: str, wait_klippy_started: bool = False
