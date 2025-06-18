@@ -12,7 +12,7 @@ import logging
 import time
 import tempfile
 import pathlib
-
+import locales
 from moonraker.utils import ServerError
 from .common import AppType, get_base_configuration, get_app_type
 from .base_deploy import BaseDeploy
@@ -81,11 +81,11 @@ class UpdateManager:
             not (0 <= self.refresh_window[0] <= 23) or
             not (0 <= self.refresh_window[1] <= 23)
         ):
-            raise config.error("The hours specified in 'refresh_window'"
-                               " must be between 0 and 23.")
+            raise config.error(_("The hours specified in 'refresh_window'"
+                               " must be between 0 and 23."))
         if self.refresh_window[0] == self.refresh_window[1]:
-            raise config.error("The start and end hours specified"
-                               " in 'refresh_window' cannot be the same.")
+            raise config.error(_("The start and end hours specified"
+                               " in 'refresh_window' cannot be the same."))
 
         self.cmd_helper = CommandHelper(config, self.get_updaters)
         self.updaters: Dict[str, BaseDeploy] = {}
@@ -110,9 +110,9 @@ class UpdateManager:
             config.get('client_path', None) is not None
         ):
             raise config.error(
-                "The deprecated 'client_repo' and 'client_path' options\n"
+                _("The deprecated 'client_repo' and 'client_path' options\n"
                 "have been removed.  See Moonraker's configuration docs\n"
-                "for details on client configuration.")
+                "for details on client configuration."))
         client_sections = config.get_prefix_sections("update_manager ")
         for section in client_sections:
             cfg = config[section]
@@ -120,21 +120,29 @@ class UpdateManager:
             if name in self.updaters:
                 if name not in ["klipper", "moonraker"]:
                     self.server.add_warning(
-                        f"[update_manager]: Extension {name} already added"
+                        _("[update_manager]: Extension %s already added") % name
                     )
+                    # self.server.add_warning(
+                    #     f"[update_manager]: Extension {name} already added"
+                    # )
                 continue
             try:
                 client_type = cfg.get("type")
                 deployer = get_deploy_class(client_type, None)
                 if deployer is None:
                     self.server.add_warning(
-                        f"Invalid type '{client_type}' for section [{section}]")
+                        _("Invalid type '%s' for section [%s]") % (client_type, section))
+                    # self.server.add_warning(
+                    #     f"Invalid type '{client_type}' for section [{section}]")
                 else:
                     self.updaters[name] = deployer(cfg, self.cmd_helper)
             except Exception as e:
                 self.server.add_warning(
-                    f"[update_manager]: Failed to load extension {name}: {e}"
+                    _("[update_manager]: Failed to load extension %s: %s") % (name, e)
                 )
+                # self.server.add_warning(
+                #     f"[update_manager]: Failed to load extension {name}: {e}"
+                # )
 
         self.cmd_request_lock = asyncio.Lock()
         self.initial_refresh_complete: bool = False
@@ -298,22 +306,26 @@ class UpdateManager:
                                      web_request: WebRequest
                                      ) -> str:
         if self.kconn.is_printing():
-            raise self.server.error("Update Refused: Klippy is printing")
+            raise self.server.error(_("Update Refused: Klippy is printing"))
         app: str = web_request.get_endpoint().split("/")[-1]
         if app == "client":
             app = web_request.get_str('name')
         if self.cmd_helper.is_app_updating(app):
-            return f"Object {app} is currently being updated"
+            return _("Object %s is currently being updated") % app
+            # return f"Object {app} is currently being updated"
         updater = self.updaters.get(app, None)
         if updater is None:
-            raise self.server.error(f"Updater {app} not available", 404)
+            raise self.server.error(_("Updater %s not available") % app, 404)
+            # raise self.server.error(f"Updater {app} not available", 404)
         async with self.cmd_request_lock:
             self.cmd_helper.set_update_info(app, id(web_request))
             try:
                 await updater.update()
             except Exception as e:
                 self.cmd_helper.notify_update_response(
-                    f"Error updating {app}: {e}", is_complete=True)
+                    _("Error updating %s: %s") % (app, _(e)), is_complete=True) # Timeout while connecting
+                # self.cmd_helper.notify_update_response(
+                #     f"Error updating {app}: {e}", is_complete=True)
                 raise
             finally:
                 self.cmd_helper.clear_update_info()
@@ -331,7 +343,7 @@ class UpdateManager:
     
     async def _handle_applications_update_request(self, web_request: WebRequest) -> str:
         if self.kconn.is_printing():
-          raise self.server.error("Update Refused: Klippy is printing")
+          raise self.server.error(_("Update Refused: Klippy is printing"))
         updating_names: list[str] = []
         for name in self.updaters.keys():
             if name not in ['klipper', 'moonraker', 'system']:
@@ -341,11 +353,13 @@ class UpdateManager:
         try:
           await self._update_sorted_applications(web_request, updating_names)
           self.cmd_helper.set_full_complete(True)
-          self.cmd_helper.notify_update_response("Full Update Complete", is_complete=True)
+          self.cmd_helper.notify_update_response(_("Full Update Complete"), is_complete=True)
         except Exception as e:
           self.cmd_helper.set_full_complete(True)
           self.cmd_helper.notify_update_response(
-              f"Error on full updating: {e}", is_complete=True)
+              _("Error on full updating: %s") % _(e), is_complete=True) # Timeout while connecting
+          # self.cmd_helper.notify_update_response(
+          #     f"Error on full updating: {e}", is_complete=True)
         finally:
             self.cmd_helper.clear_update_info()
         return "ok"
@@ -354,24 +368,29 @@ class UpdateManager:
         for app in apps:
             if self.cmd_helper.is_app_updating(app):
               self.cmd_helper.notify_update_response(
-                  f"Object {app} is currently being updated")
+                  _("Object %s is currently being updated") % app)
+              # self.cmd_helper.notify_update_response(
+              #     f"Object {app} is currently being updated")
               continue
             updater = self.updaters.get(app, None)
             if updater is None:
-                raise self.server.error(f"Updater {app} not available", 404)
+                raise self.server.error(_("Updater %s not available") % app, 404)
+                # raise self.server.error(f"Updater {app} not available", 404)
             async with self.cmd_request_lock:
                 self.cmd_helper.set_update_info(app, id(web_request))
                 try:
                     await updater.update()
                 except Exception as e:
                     self.cmd_helper.notify_update_response(
-                        f"Error updating {app}: {e}", is_complete=True)
+                        _("Error updating %s: %s") % (app, _(e)), is_complete=True) # Timeout while connecting
+                    # self.cmd_helper.notify_update_response(
+                    #     f"Error updating {app}: {e}", is_complete=True)
                     raise
 
     async def _handle_recover_needed(self, web_request: WebRequest) -> str:
       if self.kconn.is_printing():
           raise self.server.error(
-              "Recovery Attempt Refused: Klippy is printing")
+              _("Recovery Attempt Refused: Klippy is printing"))
       apps = web_request.get_dict('apps', {})
       for app in apps:
           hard = apps[app]['hard']
@@ -379,9 +398,11 @@ class UpdateManager:
           updater = self.updaters.get(app, None)
           try:
             if updater is None:
-                raise self.server.error(f"Updater {app} not available", 404)
+                raise self.server.error(_("Updater %s not available") % app, 404)
+                # raise self.server.error(f"Updater {app} not available", 404)
             elif not isinstance(updater, GitDeploy):
-                raise self.server.error(f"Upater {app} is not a Git Repo Type")
+                raise self.server.error(_("Upater %s is not a Git Repo Type") % app)
+                # raise self.server.error(f"Upater {app} is not a Git Repo Type")
           except ServerError as e:
               logging.error(e)
               continue
@@ -391,7 +412,9 @@ class UpdateManager:
                 await updater.recover(hard, update_deps)
               except Exception as e:
                   self.cmd_helper.notify_update_response(
-                      f"Error Recovering {app}")
+                      _("Error Recovering %s") % app)
+                  # self.cmd_helper.notify_update_response(
+                  #     f"Error Recovering {app}")
                   self.cmd_helper.notify_update_response(
                       str(e), is_complete=True)
                   raise
@@ -455,7 +478,8 @@ class UpdateManager:
     ) -> Dict[str, Any]:
         name: Optional[str] = web_request.get_str("name", None)
         if name is not None and name not in self.updaters:
-            raise self.server.error(f"No updater registered for '{name}'")
+            raise self.server.error(_("No updater registered for '%s'") % name)
+            # raise self.server.error(f"No updater registered for '{name}'")
         machine: Machine = self.server.lookup_component("machine")
         if (
             machine.validation_enabled() or
@@ -464,7 +488,7 @@ class UpdateManager:
             not self.initial_refresh_complete
         ):
             raise self.server.error(
-                "Server is busy, cannot perform refresh", 503
+                _("Server is busy, cannot perform refresh"), 503
             )
         async with self.cmd_request_lock:
             vinfo: Dict[str, Any] = {}
@@ -484,22 +508,26 @@ class UpdateManager:
     async def _handle_repo_recovery(self, web_request: WebRequest) -> str:
         if self.kconn.is_printing():
             raise self.server.error(
-                "Recovery Attempt Refused: Klippy is printing")
+                _("Recovery Attempt Refused: Klippy is printing"))
         app: str = web_request.get_str('name')
         hard = web_request.get_boolean("hard", False)
         update_deps = web_request.get_boolean("update_deps", False)
         updater = self.updaters.get(app, None)
         if updater is None:
-            raise self.server.error(f"Updater {app} not available", 404)
+            raise self.server.error(_("Updater %s not available") % app, 404)
+            # raise self.server.error(f"Updater {app} not available", 404)
         elif not isinstance(updater, GitDeploy):
-            raise self.server.error(f"Upater {app} is not a Git Repo Type")
+            raise self.server.error(_("Upater %s is not a Git Repo Type") % app)
+            # raise self.server.error(f"Upater {app} is not a Git Repo Type")
         async with self.cmd_request_lock:
             self.cmd_helper.set_update_info(f"recover_{app}", id(web_request))
             try:
                 await updater.recover(hard, update_deps)
             except Exception as e:
                 self.cmd_helper.notify_update_response(
-                    f"Error Recovering {app}")
+                    _("Error Recovering %s") % app)
+                # self.cmd_helper.notify_update_response(
+                #     f"Error Recovering {app}")
                 self.cmd_helper.notify_update_response(
                     str(e), is_complete=True)
                 raise
@@ -509,17 +537,19 @@ class UpdateManager:
 
     async def _handle_rollback(self, web_request: WebRequest) -> str:
         if self.kconn.is_printing():
-            raise self.server.error("Rollback Attempt Refused: Klippy is printing")
+            raise self.server.error(_("Rollback Attempt Refused: Klippy is printing"))
         app: str = web_request.get_str('name')
         updater = self.updaters.get(app, None)
         if updater is None:
-            raise self.server.error(f"Updater {app} not available", 404)
+            raise self.server.error(_("Updater %s not available") % app, 404)
+            # raise self.server.error(f"Updater {app} not available", 404)
         async with self.cmd_request_lock:
             self.cmd_helper.set_update_info(f"rollback_{app}", id(web_request))
             try:
                 await updater.rollback()
             except Exception as e:
-                self.cmd_helper.notify_update_response(f"Error Rolling Back {app}")
+                self.cmd_helper.notify_update_response(_("Error Rolling Back %s") % app)
+                # self.cmd_helper.notify_update_response(f"Error Rolling Back {app}")
                 self.cmd_helper.notify_update_response(str(e), is_complete=True)
                 raise
             finally:
@@ -702,11 +732,17 @@ class CommandHelper:
         self, progress: int, download_size: int, downloaded: int
     ) -> None:
         totals = (
-            f"{downloaded // 1024} KiB / "
-            f"{download_size // 1024} KiB"
+            _("%s KiB / "
+              "%s KiB") % (downloaded // 1024, download_size // 1024)
         )
+        # totals = (
+        #     f"{downloaded // 1024} KiB / "
+        #     f"{download_size // 1024} KiB"
+        # )
         self.notify_update_response(
-            f"Downloading {self.cur_update_app}: {totals} [{progress}%]")
+            _("Downloading %s: %s [%s%]") % (self.cur_update_app, totals, progress))
+        # self.notify_update_response(
+        #     f"Downloading {self.cur_update_app}: {totals} [{progress}%]")
 
     async def create_tempdir(
         self, suffix: Optional[str] = None, prefix: Optional[str] = None
@@ -749,9 +785,14 @@ class InstanceTracker:
                 if len(iids) > 1:
                     self.server.add_log_rollover_item(
                         "um_multi_instance_msg",
-                        "Multiple instances of Moonraker have the update "
-                        f"manager enabled.\n{iid_string}"
+                        _("Multiple instances of Moonraker have the update "
+                        "manager enabled.\n%s") % iid_string
                     )
+                    # self.server.add_log_rollover_item(
+                    #     "um_multi_instance_msg",
+                    #     "Multiple instances of Moonraker have the update "
+                    #     f"manager enabled.\n{iid_string}"
+                    # )
                 eventloop = self.server.get_event_loop()
                 await eventloop.run_in_thread(
                     self.inst_file_path.write_text, iid_string

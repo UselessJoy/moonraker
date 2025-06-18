@@ -13,6 +13,7 @@ import re
 import distro
 import asyncio
 import importlib
+import locales
 from .common import AppType, Channel
 from .base_deploy import BaseDeploy
 from ...utils import pip_utils
@@ -61,10 +62,11 @@ class AppDeploy(BaseDeploy):
         self.type = AppType.from_string(config.get('type'))
         if self.type not in type_choices:
             str_types = [str(t) for t in type_choices]
-            raise config.error(
-                f"Section [{config.get_name()}], Option 'type: {self.type}': "
-                f"value must be one of the following choices: {str_types}"
-            )
+            raise config.error( _("Section [%s], Option 'type: %s': value must be one of the following choises: %s") % (config.get_name(), self.type, str_types))
+            # raise config.error(
+            #     f"Section [{config.get_name()}], Option 'type: {self.type}': "
+            #     f"value must be one of the following choices: {str_types}"
+            # )
         self.channel = Channel.from_string(
             config.get("channel", str(TYPE_TO_CHANNEL[self.type]))
         )
@@ -74,11 +76,14 @@ class AppDeploy(BaseDeploy):
             self.channel_invalid = True
             invalid_channel = self.channel
             self.channel = TYPE_TO_CHANNEL[self.type]
-            self.server.add_warning(
-                f"[{config.get_name()}]: Invalid value '{invalid_channel}' for "
-                f"option 'channel'. Type '{self.type}' supports the following "
-                f"channels: {str_channels}.  Falling back to channel '{self.channel}'"
-            )
+            self.server.add_warning(_("[%s]: Invalid value '%s' for "
+                                      "option 'channel'. Type '%s' supports the following "
+                                      "channels: %s. Falling back to channel '%s'") % (config.get_name(), invalid_channel, self.type, str_channels, self.channel))
+            # self.server.add_warning(
+            #     f"[{config.get_name()}]: Invalid value '{invalid_channel}' for "
+            #     f"option 'channel'. Type '{self.type}' supports the following "
+            #     f"channels: {str_channels}.  Falling back to channel '{self.channel}'"
+            # )
         self._is_valid: bool = False
         self.virtualenv: Optional[pathlib.Path] = None
         self.py_exec: Optional[pathlib.Path] = None
@@ -120,17 +125,27 @@ class AppDeploy(BaseDeploy):
             act_path = venv_path.joinpath("bin/activate")
             if not act_path.is_file():
                 raise config.error(
-                    f"[{config.get_name()}]: Invalid virtualenv at path {venv_path}. "
-                    f"Verify that the 'virtualenv' option is set to a valid "
-                    "virtualenv path."
+                    _("[%s]: Invalid virtualenv at path %s. "
+                      "Verify that the 'virtualenv' option is set to a valid "
+                      "virtualenv path.") % (config.get_name(), venv_path)
                 )
+                # raise config.error(
+                #     f"[{config.get_name()}]: Invalid virtualenv at path {venv_path}. "
+                #     f"Verify that the 'virtualenv' option is set to a valid "
+                #     "virtualenv path."
+                # )
             self.py_exec = venv_path.joinpath("bin/python")
             if not (self.py_exec.is_file() and os.access(self.py_exec, os.X_OK)):
                 raise config.error(
-                    f"[{config.get_name()}]: Invalid python executable at "
-                    f"{self.py_exec}. Verify that the 'virtualenv' option is set "
-                    "to a valid virtualenv path."
+                    _("[%s]: Invalid python executable at "
+                      "%s. Verify that the 'virtualenv' option is set "
+                      "to a valid virtualenv path.") % (config.get_name(), self.py_exec)
                 )
+                # raise config.error(
+                #     f"[{config.get_name()}]: Invalid python executable at "
+                #     f"{self.py_exec}. Verify that the 'virtualenv' option is set "
+                #     "to a valid virtualenv path."
+                # )
             self.log_info(f"Detected virtualenv: {venv_path}")
             self.virtualenv = venv_path
             pip_exe = self.virtualenv.joinpath("bin/pip")
@@ -178,22 +193,35 @@ class AppDeploy(BaseDeploy):
             asvc = pathlib.Path(data_path).joinpath("moonraker.asvc")
             if not machine.is_service_allowed(self.name):
                 self.server.add_warning(
-                    f"[{config.get_name()}]: Moonraker is not permitted to "
-                    f"restart service '{self.name}'.  To enable management "
-                    f"of this service add {self.name} to the bottom of the "
-                    f"file {asvc}.  To disable management for this service "
+                    _("[%s]: Moonraker is not permitted to "
+                    "restart service '%s'.  To enable management "
+                    "of this service add %s to the bottom of the "
+                    "file %s.  To disable management for this service "
                     "set 'is_system_service: False' in the configuration "
-                    "for this section."
+                    "for this section.") % (config.get_name(), self.name, self.name, asvc)
                 )
+                # self.server.add_warning(
+                #     f"[{config.get_name()}]: Moonraker is not permitted to "
+                #     f"restart service '{self.name}'.  To enable management "
+                #     f"of this service add {self.name} to the bottom of the "
+                #     f"file {asvc}.  To disable management for this service "
+                #     "set 'is_system_service: False' in the configuration "
+                #     "for this section."
+                # )
                 services.clear()
         for svc in services:
             if svc not in svc_choices:
                 raw = " ".join(services)
                 self.server.add_warning(
-                    f"[{config.get_name()}]: Option 'managed_services: {raw}' "
-                    f"contains an invalid value '{svc}'.  All values must be "
-                    f"one of the following choices: {svc_choices}"
+                    _("[%s]: Option 'managed_services: %s' "
+                    "contains an invalid value '%s'.  All values must be "
+                    "one of the following choices: %s") % (config.get_name(), raw, svc, svc_choices)
                 )
+                # self.server.add_warning(
+                #     f"[{config.get_name()}]: Option 'managed_services: {raw}' "
+                #     f"contains an invalid value '{svc}'.  All values must be "
+                #     f"one of the following choices: {svc_choices}"
+                # )
                 break
         for svc in svc_choices:
             if svc in services and svc not in self.managed_services:
@@ -210,16 +238,21 @@ class AppDeploy(BaseDeploy):
         check_file: bool = True,
         check_exe: bool = False
     ) -> None:
-        base_msg = (
-            f"Invalid path for option `{option}` in section "
-            f"[{config.get_name()}]: Path `{path}`"
-        )
+        # base_msg = (
+        #     f"Invalid path for option `{option}` in section "
+        #     f"[{config.get_name()}]: Path `{path}`"
+        # )
+        base_msg = _("Invalid path for option `%s` in section "
+                     "[%s]: Path `%s`") % (option, config.get_name(), path)
         if not path.exists():
-            raise config.error(f"{base_msg} does not exist")
+            raise config.error(_("%s does not exist") % base_msg)
+            # raise config.error(f"{base_msg} does not exist")
         if check_file and not path.is_file():
-            raise config.error(f"{base_msg} is not a file")
+            raise config.error(_("%s is not a file") % base_msg)
+            # raise config.error(f"{base_msg} is not a file")
         if check_exe and not os.access(path, os.X_OK):
-            raise config.error(f"{base_msg} is not executable")
+            raise config.error(_("%s is not executable") % base_msg)
+            # raise config.error(f"{base_msg} is not executable")
 
     async def initialize(self) -> Dict[str, Any]:
         storage = await super().initialize()
@@ -382,13 +415,13 @@ class AppDeploy(BaseDeploy):
         return prev_hash != cur_hash
 
     async def _install_packages(self, package_list: List[str]) -> None:
-        self.notify_status("Installing system dependencies...")
+        self.notify_status(_("Installing system dependencies..."))
         # Install packages with apt-get
         try:
             await self.cmd_helper.install_packages(
                 package_list, timeout=3600., notify=True)
         except Exception:
-            self.log_exc("Error updating packages")
+            self.log_exc(_("Error updating packages"))
             return
 
     async def _update_python_requirements(
@@ -402,29 +435,34 @@ class AppDeploy(BaseDeploy):
             self.pip_cmd, self.server, self.cmd_helper.notify_update_response
         )
         # Check the current pip version
-        self.notify_status("Checking pip version...")
+        self.notify_status(_("Checking pip version..."))
         try:
             pip_ver = await pip_exec.get_pip_version()
             if pip_utils.check_pip_needs_update(pip_ver):
                 cur_ver = pip_ver.pip_version_string
                 update_ver = ".".join([str(part) for part in pip_utils.MIN_PIP_VERSION])
                 self.notify_status(
-                    f"Updating pip from version {cur_ver} to {update_ver}..."
+                    _("Updating pip from version %s to %s...") % (cur_ver, update_ver)
                 )
+                # self.notify_status(
+                #     f"Updating pip from version {cur_ver} to {update_ver}..."
+                # )
                 await pip_exec.update_pip()
                 self.pip_version = pip_utils.MIN_PIP_VERSION
         except asyncio.CancelledError:
             raise
         except Exception as e:
-            self.notify_status(f"Pip Version Check Error: {e}")
-            self.log_exc("Pip Version Check Error")
-        self.notify_status("Updating python packages...")
+            self.notify_status(_("Pip Version Check Error: %s") % e)
+            self.log_exc(_("Pip Version Check Error"))
+            # self.notify_status(f"Pip Version Check Error: {e}")
+            # self.log_exc("Pip Version Check Error")
+        self.notify_status(_("Updating python packages..."))
         try:
             await pip_exec.install_packages(requirements, self.pip_env_vars)
         except asyncio.CancelledError:
             raise
         except Exception:
-            self.log_exc("Error updating python requirements")
+            self.log_exc(_("Error updating python requirements"))
 
     async def _collect_dependency_info(self) -> Dict[str, Any]:
         pkg_deps = await self._read_system_dependencies()

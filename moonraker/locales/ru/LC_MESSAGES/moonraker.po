@@ -1,0 +1,382 @@
+### APP_DEPLOY MODULE START ###
+msgid "Section [%s], Option 'type: %s': value must be one of the following choises: %s"
+msgstr "Секция [%s], параметр 'тип: %s': значение должно быть одним из следующих вариантов: %s"
+
+msgid ""
+"[%s]: Invalid value '%s' for "
+"option 'channel'. Type '%s' supports the following "
+"channels: %s. Falling back to channel '%s'"
+msgstr ""
+"[%s]: Недопустимое значение '%s' для "
+"параметра 'канал'. Тип '%s' поддерживает следующие "
+"каналы: %s. Возвращаемся к каналу '%s'"
+
+msgid ""
+"[%s]: Invalid virtualenv at path %s. "
+"Verify that the 'virtualenv' option is set to a valid "
+"virtualenv path."
+msgstr ""
+"[%s]: Недопустимый путь к virtualenv по адресу %s. "
+"Убедитесь, что для параметра 'virtualenv' задано допустимый "
+"путь к virtualenv."
+
+msgid ""
+"[%s]: Invalid python executable at "
+"%s. Verify that the 'virtualenv' option is set "
+"to a valid virtualenv path."
+msgstr ""
+"[%s]: Недопустимый исполняемый файл python в "
+"%s. Убедитесь, что для параметра 'virtualenv' установлен "
+"допустимый путь к virtualenv."
+
+msgid ""
+"[%s]: Moonraker is not permitted to "
+"restart service '%s'.  To enable management "
+"of this service add %s to the bottom of the "
+"file %s.  To disable management for this service "
+"set 'is_system_service: False' in the configuration "
+"for this section."
+msgstr ""
+"[%s]: Moonraker не разрешено перезапускать службу '%s'."
+"Чтобы разрешить управление этой службой, добавьте '%s' в нижнюю часть файла '%s'."
+"Чтобы отключить управление для этой службы, установите "is_system_service: False" в конфигурации"
+"для этого раздела."
+
+msgid ""
+"[%s]: Option 'managed_services: %s' "
+"contains an invalid value '%s'.  All values must be "
+"one of the following choices: %s"
+msgstr ""
+"[%s]: Параметр 'managed_services: %s' "
+"содержит недопустимое значение '%s'. Все значения должны быть "
+"одним из следующих вариантов: %s"
+
+msgid "Invalid path for option `%s` in section [%s]: Path `%s`"
+msgstr "Недопустимый путь для параметра '%s' в разделе [%s]: Путь '%s'"
+
+msgid "%s does not exist"
+msgstr "%s не существует"
+
+msgid "%s is not a file"
+msgstr "%s - это не файл"
+
+msgid "%s is not executable"
+msgstr "%s не является исполняемым файлом"
+
+msgid "Installing system dependencies..."
+msgstr "Установка системных зависимостей..."
+
+msgid "Error updating packages"
+msgstr "Ошибка при обновлении пакетов"
+
+msgid "Checking pip version..."
+msgstr "Проверяем версию pip..."
+
+msgid "Updating pip from version %s to %s..."
+msgstr "Обновление pip с версии %s до %s..."
+
+msgid "Pip Version Check Error: %s"
+msgstr "Ошибка проверки версии Pip: %s"
+
+msgid "Pip Version Check Error"
+msgstr "Ошибка проверки версии Pip"
+
+msgid "Updating python packages..."
+msgstr "Обновление пакетов python..."
+
+msgid "Error updating python requirements"
+msgstr "Ошибка при обновлении требований к python"
+
+###  APP_DEPLOY MODULE END  ###
+
+### UPDATE_MANAGER MODULE START ###
+msgid ""
+"The hours specified in 'refresh_window'"
+" must be between 0 and 23."
+msgstr ""
+"Часы, указанные в поле 'refresh_window',"
+" должны быть в диапазоне от 0 до 23."
+
+msgid ""
+"The start and end hours specified"
+" in 'refresh_window' cannot be the same."
+msgstr ""
+"Часы начала и окончания, указанные"
+"в 'refresh_window', не могут совпадать."
+
+msgid ""
+"The deprecated 'client_repo' and 'client_path' options\n"
+"have been removed.  See Moonraker's configuration docs\n"
+"for details on client configuration."
+msgstr ""
+"Устаревшие параметры 'client_repo' и 'client_path'\nбыли удалены. "
+"Подробности о конфигурации клиента см. в\nдокументации Moonraker по конфигурации."
+
+msgid "[update_manager]: Extension %s already added"
+msgstr "[update_manager]: Расширение %s уже добавлено"
+
+msgid "Invalid type '%s' for section [%s]"
+msgstr "Недопустимый тип '%s' для раздела [%s]"
+
+msgid "[update_manager]: Failed to load extension %s: %s"
+msgstr "[update_manager]: Не удалось загрузить расширение %s: %s"
+
+msgid "Update Refused: Klippy is printing"
+msgstr "Обновление отклонено: Klippy печатает"
+
+msgid "Object %s is currently being updated"
+msgstr "Объект %s в настоящее время обновляется"
+
+msgid "Updater %s not available"
+msgstr "Программа обновления %s недоступна"
+
+msgid "Error updating %s: %s"
+msgstr "Ошибка обновления %s: %s"
+
+msgid "Full Update Complete"
+msgstr "Полное обновление завершено"
+
+msgid "Error on full updating: %s"
+msgstr "Ошибка при полном обновлении: %s"
+
+msgid "Recovery Attempt Refused: Klippy is printing"
+msgstr "Попытка восстановления отклонена: Klippy печатает"
+
+msgid "Upater %s is not a Git Repo Type"
+msgstr "Upater %s не является типом репозитория Git"
+
+msgid "Error Recovering %s"
+msgstr "Ошибка восстановления %s"
+
+msgid "No updater registered for '%s'"
+msgstr "Программа обновления для '%s' не зарегистрирована"
+
+msgid "Server is busy, cannot perform refresh"
+msgstr "Сервер занят, не удается выполнить обновление"
+
+msgid "Rollback Attempt Refused: Klippy is printing"
+msgstr "Попытка отката отклонена: Klippy печатает"
+
+msgid "Error Rolling Back %s"
+msgstr "Ошибка отката %s"
+
+msgid ""
+"%s KiB / "
+"%s KiB"
+msgstr ""
+"%s КБ / "
+"%s КБ"
+
+msgid "Downloading %s: %s [%s%]"
+msgstr "Загрузка %s: %s [%s%]"
+
+msgid ""
+"Multiple instances of Moonraker have the update "
+"manager enabled.\n%s"
+msgstr ""
+"Во многих экземплярах Moonraker включен "
+"диспетчер обновлений.\n%s"
+
+###  UPDATE_MANAGER MODULE END  ###
+
+### GIT_DEPLOY MODULE START ###
+
+msgid ""
+"[%s]: Value for option 'commit' must be "
+"a minimum of 8 characters."
+msgstr ""
+"[%s]: Значение параметра 'фиксация' должно "
+"содержать не менее 8 символов."
+
+msgid "Update aborted, repo not valid"
+msgstr "Обновление прервано, репозиторий недействителен"
+
+msgid "Update aborted, repo has been modified"
+msgstr "Обновление прервано, репозиторий был изменен"
+
+msgid "Updating Application %s..."
+msgstr "Обновление приложения %s..."
+
+msgid "Update Finished..."
+msgstr "Обновление завершено..."
+
+msgid "Attempting Repo Recovery..."
+msgstr "Попытка восстановления репозитория..."
+
+msgid "Resetting Git Repo..."
+msgstr "Сброс Git-репозитория..."
+
+msgid "Recovery attempt failed, repo state not pristine"
+msgstr "Попытка восстановления не удалась, состояние хранилища изменено"
+
+msgid "Reinstall Complete"
+msgstr "Переустановка завершена"
+
+msgid "Rollback Complete"
+msgstr "Откат завершен"
+
+msgid "Rollback not performed"
+msgstr "Откат не выполнен"
+
+msgid "Updating Repo..."
+msgstr "Обновление репозитория..."
+
+msgid "Repo has diverged, attempting git reset"
+msgstr "Репозиторий отклонился, пытаясь сбросить git"
+
+msgid ""
+"Manually restore via SSH with the following commands:"
+"sudo service %s stop"
+"cd %s"
+"rm -rf %s"
+"git clone %s"
+"sudo service %s start"
+msgstr ""
+"Восстановите вручную по SSH с помощью следующих команд:\n"
+"sudo service %s stop\n"
+"cd %s\n"
+"rm -rf %s\n"
+"git clone %s\n"
+"sudo service %s start"
+
+msgid "Resolve by manually checking out a branch via SSH."
+msgstr "Решите проблему, вручную проверив ветку по SSH."
+
+msgid "Defaulting to previously tracked %s."
+msgstr "Значение по умолчанию для ранее отслеживаемых %s."
+
+msgid ""
+"Git Repo %s: Origin URL does not "
+"not match configured 'moved_origin'option. "
+"Expected: %s"
+msgstr ""
+"Git репозиторий %s: Исходный URL-адрес "
+"не соответствует настроенному параметру 'moved_origin'. "
+"Ожидается: %s"
+
+msgid "Git Repo %s: Initialization failure"
+msgstr "Git репозиторий %s: Ошибка инициализации"
+
+msgid "Pinned Commit %s does not exist"
+msgstr "Закрепленная фиксация %s не существует"
+
+msgid "Repo is corrupt"
+msgstr "Ошибка репозитория"
+
+msgid "Failed to detect git branch"
+msgstr "Не удалось обнаружить ветвь git"
+
+msgid "Failed to detect tracking remote for branch %s"
+msgstr "Не удалось обнаружить удаленное отслеживание для ветки %s"
+
+msgid "Failed to detect repo url"
+msgstr "Не удалось обнаружить URL-адрес репозитория"
+
+msgid "Unofficial remote url: %s.\nOfficial url is: %s"
+msgstr "Неофициальный удаленный url: %s.\nОфициальный url: %s"
+
+msgid ""
+"Repo not on offical remote/branch, expected: "
+"origin/%s, detected: "
+"%s/%s"
+msgstr ""
+"Репозиторий не на официальной ветке, ожидалось: "
+"origin/%s, обнаружено: "
+"%s/%s"
+
+msgid "Repo has untracked source files: %s"
+msgstr "В репозитории есть неотслеживаемые исходные файлы: %s"
+
+msgid "Repo has diverged from remote"
+msgstr "Репозиторий отошел от удаленного"
+
+msgid ""
+"Repo is dirty.  Detected the following modifed files: "
+"%s"
+msgstr ""
+"Репозиторий поврежден. Обнаружены следующие измененные файлы: "
+"%s"
+
+msgid "Git Repo %s: No warnings detected"
+msgstr "Репозиторий %s: Никаких предупреждений не обнаружено"
+
+msgid "Git Repo %s: Warnings detected:\n"
+msgstr "Репозиторий %s: Обнаружены предупреждения:\n"
+
+msgid "Git Repo %s: repo not initialized"
+msgstr "Репозиторий %s: репозиторий неинициализирован"
+
+msgid "Git Repo %s: No valid git remote detected"
+msgstr "Репозиторий %s: Не найдены действительные удаленные репозитории"
+
+msgid "Cannot reset, unknown remote/branch"
+msgstr "Не удается сбросить, неизвестная удаленная ветка"
+
+msgid ""
+"Git Repo %s: Cannot perform pull on a "
+"detached HEAD"
+msgstr ""
+"Репозиторий %s: Не удается выполнить вытягивание "
+"отделяемого HEAD"
+
+msgid "Failed to run git-config"
+msgstr "Не удалось выполнить git-config"
+
+msgid ""
+"Cannot clone git repo %s, it is a %s "
+"of another git repo."
+msgstr "Не удалось скопировать репозиторий %s, это %s "
+"или иной репозиторий."
+
+msgid "Recovery url has not been detected, clone aborted"
+msgstr "URL-адрес для восстановления не обнаружен, клонирование прервано"
+
+msgid "Git Repo %s: Starting Clone Recovery..."
+msgstr "Репозиторий %s: Запускаю восстановление..."
+
+msgid "Git Repo %s: Git Clone Failed"
+msgstr "Репозиторий %s: клонирование репозитория завершилось с ошибкой"
+
+msgid "Git Clone Error"
+msgstr "Ошибка клонирования репозитория"
+
+msgid "Git Repo %s: Git Clone Complete"
+msgstr "Репозиторий %s: клонирование репозитория завершилось успешно"
+
+msgid ""
+"Git Repo %s: Moving HEAD to previous "
+"commit %s"
+msgstr "Репозиторий %s: Перемещаю HEAD к предыдущему "
+"коммиту %s"
+
+msgid "Incomplete rollback data stored, cannot rollback"
+msgstr "Сохраненные неполные данные для отката, откат невозможен"
+
+msgid "Failed to find remote for primary branch '%s'"
+msgstr "Не удалось найти удаленный сервер для основной ветки '%s'"
+
+msgid "Attempting to repair loose objects..."
+msgstr "Пытаюсь починить незакрепленные предметы..."
+
+msgid ""
+"Attempt to repair loose objects failed, "
+"hard recovery is required"
+msgstr ""
+"Попытка восстановления потерянных объектов не удалась, "
+"Требуется полное восстановление"
+
+msgid "Loose objects repaired"
+msgstr "Потерянные объекты восстановленны"
+
+msgid "Unable to repair loose objects, use hard recovery"
+msgstr "Не удалось восстановить потерянные объекты, используйте полное восстановление"
+
+msgid "Git Command '%s' failed"
+msgstr "Git команда '%s' завершилась с ошибкой"
+
+###  GIT_DEPLOY MODULE END  ###
+
+### EXCEPTIONS START ###
+msgid "Timeout while connecting"
+msgstr "Тайм-аут при подключении"
+###  EXCEPTIONS END  ###

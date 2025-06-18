@@ -1,0 +1,360 @@
+### APP_DEPLOY MODULE START ###
+msgid "Section [%s], Option 'type: %s': value must be one of the following choises: %s"
+msgstr ""
+
+msgid ""
+"[%s]: Invalid value '%s' for "
+"option 'channel'. Type '%s' supports the following "
+"channels: %s. Falling back to channel '%s'"
+msgstr ""
+
+msgid ""
+"[%s]: Invalid virtualenv at path %s. "
+"Verify that the 'virtualenv' option is set to a valid "
+"virtualenv path."
+msgstr ""
+
+msgid ""
+"[%s]: Invalid python executable at "
+"%s. Verify that the 'virtualenv' option is set "
+"to a valid virtualenv path."
+msgstr ""
+
+msgid ""
+"[%s]: Moonraker is not permitted to "
+"restart service '%s'.  To enable management "
+"of this service add %s to the bottom of the "
+"file %s.  To disable management for this service "
+"set 'is_system_service: False' in the configuration "
+"for this section."
+msgstr ""
+
+msgid ""
+"[%s]: Option 'managed_services: %s' "
+"contains an invalid value '%s'.  All values must be "
+"one of the following choices: %s"
+msgstr ""
+
+msgid "Invalid path for option `%s` in section [%s]: Path `%s`"
+msgstr ""
+
+msgid "%s does not exist"
+msgstr ""
+
+msgid "%s is not a file"
+msgstr ""
+
+msgid "%s is not executable"
+msgstr ""
+
+msgid "Installing system dependencies..."
+msgstr ""
+
+msgid "Error updating packages"
+msgstr ""
+
+msgid "Checking pip version..."
+msgstr ""
+
+msgid "Updating pip from version %s to %s..."
+msgstr ""
+
+msgid "Pip Version Check Error: %s"
+msgstr ""
+
+msgid "Pip Version Check Error"
+msgstr ""
+
+msgid "Updating python packages..."
+msgstr ""
+
+msgid "Error updating python requirements"
+msgstr ""
+
+###  APP_DEPLOY MODULE END  ###
+
+### UPDATE_MANAGER MODULE START ###
+msgid ""
+"The hours specified in 'refresh_window'"
+" must be between 0 and 23."
+msgstr ""
+
+msgid ""
+"The start and end hours specified"
+" in 'refresh_window' cannot be the same."
+msgstr ""
+
+msgid ""
+"The deprecated 'client_repo' and 'client_path' options\n"
+"have been removed.  See Moonraker's configuration docs\n"
+"for details on client configuration."
+msgstr ""
+
+msgid "[update_manager]: Extension %s already added"
+msgstr ""
+
+msgid "Invalid type '%s' for section [%s]"
+msgstr ""
+
+msgid "[update_manager]: Failed to load extension %s: %s"
+msgstr ""
+
+msgid "Update Refused: Klippy is printing"
+msgstr ""
+
+msgid "Object %s is currently being updated"
+msgstr ""
+
+msgid "Updater %s not available"
+msgstr ""
+
+msgid "Error updating %s: %s"
+msgstr ""
+
+msgid "Update Refused: Klippy is printing"
+msgstr ""
+
+msgid "Full Update Complete"
+msgstr ""
+
+msgid "Error on full updating: %s"
+msgstr ""
+
+msgid "Object %s is currently being updated"
+msgstr ""
+
+msgid "Updater %s not available"
+msgstr ""
+
+msgid "Error updating %s: %s"
+msgstr ""
+
+msgid "Recovery Attempt Refused: Klippy is printing"
+msgstr ""
+
+msgid "Updater %s not available"
+msgstr ""
+
+msgid "Upater %s is not a Git Repo Type"
+msgstr ""
+
+msgid "Error Recovering %s"
+msgstr ""
+
+msgid "No updater registered for '%s'"
+msgstr ""
+
+msgid "Server is busy, cannot perform refresh"
+msgstr ""
+
+msgid "Recovery Attempt Refused: Klippy is printing"
+msgstr ""
+
+msgid "Updater %s not available"
+msgstr ""
+
+msgid "Upater %s is not a Git Repo Type"
+msgstr ""
+
+msgid "Error Recovering %s"
+msgstr ""
+
+msgid "Rollback Attempt Refused: Klippy is printing"
+msgstr ""
+
+msgid "Updater %s not available"
+msgstr ""
+
+msgid "Error Rolling Back %s"
+msgstr ""
+
+msgid ""
+"%s KiB / "
+"%s KiB"
+msgstr ""
+
+msgid "Downloading %s: %s [%s%]"
+msgstr ""
+
+msgid ""
+"um_multi_instance_msg",
+"Multiple instances of Moonraker have the update "
+"manager enabled.\n%s"
+msgstr ""
+
+###  UPDATE_MANAGER MODULE END  ###
+
+### GIT_DEPLOY MODULE START ###
+
+msgid ""
+"[%s]: Value for option 'commit' must be "
+"a minimum of 8 characters."
+msgstr ""
+
+msgid "Update aborted, repo not valid"
+msgstr ""
+
+msgid "Update aborted, repo has been modified"
+msgstr ""
+
+msgid "Updating Application %s..."
+msgstr ""
+
+msgid "Update Finished..."
+msgstr ""
+
+msgid "Attempting Repo Recovery..."
+msgstr ""
+
+msgid "Resetting Git Repo..."
+msgstr ""
+
+msgid "Recovery attempt failed, repo state not pristine"
+msgstr ""
+
+msgid "Reinstall Complete"
+msgstr ""
+
+msgid "Rollback Complete"
+msgstr ""
+
+msgid "Rollback not performed"
+msgstr ""
+
+msgid "Updating Repo..."
+msgstr ""
+
+msgid "Repo has diverged, attempting git reset"
+msgstr ""
+
+msgid ""
+"Manually restore via SSH with the following commands:"
+"sudo service %s stop"
+"cd %s"
+"rm -rf %s"
+"git clone %s"
+"sudo service %s start"
+msgstr ""
+
+msgid "Resolve by manually checking out a branch via SSH."
+msgstr ""
+
+msgid "Defaulting to previously tracked {prev}."
+msgstr ""
+
+msgid ""
+"Git Repo %s: Origin URL does not "
+"not match configured 'moved_origin'option. "
+"Expected: %s"
+msgstr ""
+
+msgid "Git Repo %s: Initialization failure"
+msgstr ""
+
+msgid "Pinned Commit %s does not exist"
+msgstr ""
+
+msgid "Repo is corrupt"
+msgstr ""
+
+msgid "Failed to detect git branch"
+msgstr ""
+
+msgid "Failed to detect tracking remote for branch %s"
+msgstr ""
+
+msgid "Failed to detect repo url"
+msgstr ""
+
+msgid "Unofficial remote url: %s.\nOfficial url is: %s"
+msgstr ""
+
+msgid ""
+"Repo not on offical remote/branch, expected: "
+"origin/%s, detected: "
+"%s/%s"
+msgstr ""
+
+msgid "Repo has untracked source files: %s"
+msgstr ""
+
+msgid "Repo has diverged from remote"
+msgstr ""
+
+msgid ""
+"Repo is dirty.  Detected the following modifed files: "
+"%s"
+msgstr ""
+
+msgid "Git Repo %s: No warnings detected"
+msgstr ""
+
+msgid "Git Repo %s: Warnings detected:\n"
+msgstr ""
+
+msgid "Git Repo %s: repo not initialized"
+msgstr ""
+
+msgid "Git Repo %s: No valid git remote detected"
+msgstr ""
+
+msgid "Cannot reset, unknown remote/branch"
+msgstr ""
+
+msgid ""
+"Git Repo %s: Cannot perform pull on a "
+"detached HEAD"
+msgstr ""
+
+msgid "Failed to run git-config"
+msgstr ""
+
+msgid ""
+"Cannot clone git repo %s, it is a %s "
+"of another git repo."
+msgstr ""
+
+msgid "Recovery url has not been detected, clone aborted"
+msgstr ""
+
+msgid "Git Repo %s: Starting Clone Recovery..."
+msgstr ""
+
+msgid "Git Repo %s: Git Clone Failed"
+msgstr ""
+
+msgid "Git Clone Error"
+msgstr ""
+
+msgid "Git Repo %s: Git Clone Complete"
+msgstr ""
+
+msgid ""
+"Git Repo %s: Moving HEAD to previous "
+"commit %s"
+msgstr ""
+
+msgid "Incomplete rollback data stored, cannot rollback"
+msgstr ""
+
+msgid "Failed to find remote for primary branch '%s'"
+msgstr ""
+
+msgid "Attempting to repair loose objects..."
+msgstr ""
+
+msgid ""
+"Attempt to repair loose objects failed, "
+"hard recovery is required"
+msgstr ""
+
+msgid "Loose objects repaired"
+msgstr ""
+
+msgid "Unable to repair loose objects, use hard recovery"
+msgstr ""
+
+msgid "Git Command '%s' failed"
+msgstr ""
+
+###  GIT_DEPLOY MODULE END  ###
