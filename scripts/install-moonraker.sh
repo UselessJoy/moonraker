@@ -22,9 +22,22 @@ try:
   ret = json.load(sys.stdin)
 except Exception:
   exit(0)
-sys.stdout.write(' '.join(ret['debian']))
+system = 'debian' if $PKG_MANAGER == "apt" else 'redos'
+sys.stdout.write(' '.join(ret[system]))
 EOF
 )
+
+function detect_package_manager() {
+  if command -v apt &> /dev/null; then
+    echo "apt"
+  elif command -v dnf &> /dev/null; then
+    echo "dnf"
+  else
+    echo "unknown"
+  fi
+}
+
+PKG_MANAGER=$(detect_package_manager)
 
 # Step 2: Clean up legacy installation
 cleanup_legacy() {
@@ -42,29 +55,42 @@ cleanup_legacy() {
 install_packages()
 {
     # Update system package info
-    report_status "Running apt-get update..."
-    sudo apt-get update --allow-releaseinfo-change
+    report_status "Running $PKG_MANAGER update..."
+    update_cmd="sudo $PKG_MANAGER update"
+    if [[ "$PKG_MANAGER" == "apt" ]]; then
+        update_cmd+=" --allow-releaseinfo-change"
+    fi
+    $update_cmd
 
     system_deps="${SRCDIR}/scripts/system-dependencies.json"
     if [ -f "${system_deps}" ]; then
         if [ ! -x "$(command -v python3)" ]; then
             report_status "Installing python3 base package..."
-            sudo apt-get install --yes python3
+            sudo $PKG_MANAGER install -y python3
         fi
         PKGS="$( cat ${system_deps} | python3 -c "${package_decode_script}" )"
 
-    else
+    elif [[ "$PKG_MANAGER" == "apt" ]]; then
         echo "Error: system-dependencies.json not found, falling back to legacy pacakge list"
         PKGLIST="${PKGLIST} python3-virtualenv python3-dev liblmdb-dev"
         PKGLIST="${PKGLIST} libopenjp2-7 libsodium-dev zlib1g-dev libjpeg-dev"
         PKGLIST="${PKGLIST} packagekit wireless-tools curl"
         PKGS=${PKGLIST}
+    elif [[ "$PKG_MANAGER" == "dnf" ]]; then
+        echo "Error: system-dependencies.json not found, falling back to legacy pacakge list"
+        PKGLIST="${PKGLIST} python3-virtualenv python3-devel liblmdb-devel"
+        PKGLIST="${PKGLIST} openjpeg2 libsodium-devel zlib1g-devel libjpeg-turbo-devel"
+        PKGLIST="${PKGLIST} PackageKit wireless-tools curl"
+        PKGS=${PKGLIST}
+    else
+      echo "Error: system-dependencies.json not found, unknown package manager"
+      return
     fi
 
     # Install desired packages
     report_status "Installing Moonraker Dependencies:"
     report_status "${PKGS}"
-    sudo apt-get install --yes ${PKGS}
+    sudo $PKG_MANAGER install -y ${PKGS}
 }
 
 # Step 4: Create python virtual environment
