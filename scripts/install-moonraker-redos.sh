@@ -22,8 +22,7 @@ try:
   ret = json.load(sys.stdin)
 except Exception:
   exit(0)
-system = 'debian' if $PKG_MANAGER == "apt" else 'redos'
-sys.stdout.write(' '.join(ret[system]))
+sys.stdout.write(' '.join(ret['redos']))
 EOF
 )
 
@@ -55,41 +54,28 @@ cleanup_legacy() {
 install_packages()
 {
     # Update system package info
-    report_status "Running $PKG_MANAGER update..."
-    update_cmd="sudo $PKG_MANAGER update"
-    if [[ "$PKG_MANAGER" == "apt" ]]; then
-        update_cmd+=" --allow-releaseinfo-change"
-    fi
-    $update_cmd
+    report_status "Running dnf update..."
+    sudo dnf update
 
     system_deps="${SRCDIR}/scripts/system-dependencies.json"
     if [ -f "${system_deps}" ]; then
         if [ ! -x "$(command -v python3)" ]; then
             report_status "Installing python3 base package..."
-            sudo $PKG_MANAGER install -y python3
+            sudo dnf install -y python3
         fi
         PKGS="$( cat ${system_deps} | python3 -c "${package_decode_script}" )"
-    elif [[ "$PKG_MANAGER" == "apt" ]]; then
-        echo "Error: system-dependencies.json not found, falling back to legacy pacakge list"
-        PKGLIST_DEBIAN="${PKGLIST_DEBIAN} python3-virtualenv python3-dev liblmdb-dev"
-        PKGLIST_DEBIAN="${PKGLIST_DEBIAN} libopenjp2-7 libsodium-dev zlib1g-dev libjpeg-dev"
-        PKGLIST_DEBIAN="${PKGLIST_DEBIAN} packagekit wireless-tools curl"
-        PKGS=${PKGLIST_DEBIAN}
-    elif [[ "$PKG_MANAGER" == "dnf" ]]; then
-        echo "Error: system-dependencies.json not found, falling back to legacy pacakge list"
-        PKGLIST_REDOS="${PKGLIST_REDOS} python3-virtualenv python3-devel liblmdb-devel"
-        PKGLIST_REDOS="${PKGLIST_REDOS} openjpeg2 libsodium-devel zlib1g-devel libjpeg-turbo-devel"
-        PKGLIST_REDOS="${PKGLIST_REDOS} PackageKit wireless-tools curl"
-        PKGS=${PKGLIST_REDOS}
     else
-      echo "Error: system-dependencies.json not found, unknown package manager"
-      return
+        echo "Error: system-dependencies.json not found, falling back to legacy pacakge list"
+        PKGLIST="${PKGLIST} python3-virtualenv python3-devel liblmdb-devel"
+        PKGLIST="${PKGLIST} openjpeg2 libsodium-devel zlib1g-devel libjpeg-turbo-devel"
+        PKGLIST="${PKGLIST} PackageKit wireless-tools curl"
+        PKGS=${PKGLIST}
     fi
 
     # Install desired packages
     report_status "Installing Moonraker Dependencies:"
     report_status "${PKGS}"
-    sudo $PKG_MANAGER install -y ${PKGS}
+    sudo dnf install -y ${PKGS}
 }
 
 # Step 4: Create python virtual environment
