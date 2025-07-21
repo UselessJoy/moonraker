@@ -69,19 +69,18 @@ install_packages()
             sudo $PKG_MANAGER install -y python3
         fi
         PKGS="$( cat ${system_deps} | python3 -c "${package_decode_script}" )"
-
     elif [[ "$PKG_MANAGER" == "apt" ]]; then
         echo "Error: system-dependencies.json not found, falling back to legacy pacakge list"
-        PKGLIST="${PKGLIST} python3-virtualenv python3-dev liblmdb-dev"
-        PKGLIST="${PKGLIST} libopenjp2-7 libsodium-dev zlib1g-dev libjpeg-dev"
-        PKGLIST="${PKGLIST} packagekit wireless-tools curl"
-        PKGS=${PKGLIST}
+        PKGLIST_DEBIAN="${PKGLIST_DEBIAN} python3-virtualenv python3-dev liblmdb-dev"
+        PKGLIST_DEBIAN="${PKGLIST_DEBIAN} libopenjp2-7 libsodium-dev zlib1g-dev libjpeg-dev"
+        PKGLIST_DEBIAN="${PKGLIST_DEBIAN} packagekit wireless-tools curl"
+        PKGS=${PKGLIST_DEBIAN}
     elif [[ "$PKG_MANAGER" == "dnf" ]]; then
         echo "Error: system-dependencies.json not found, falling back to legacy pacakge list"
-        PKGLIST="${PKGLIST} python3-virtualenv python3-devel liblmdb-devel"
-        PKGLIST="${PKGLIST} openjpeg2 libsodium-devel zlib1g-devel libjpeg-turbo-devel"
-        PKGLIST="${PKGLIST} PackageKit wireless-tools curl"
-        PKGS=${PKGLIST}
+        PKGLIST_REDOS="${PKGLIST_REDOS} python3-virtualenv python3-devel liblmdb-devel"
+        PKGLIST_REDOS="${PKGLIST_REDOS} openjpeg2 libsodium-devel zlib1g-devel libjpeg-turbo-devel"
+        PKGLIST_REDOS="${PKGLIST_REDOS} PackageKit wireless-tools curl"
+        PKGS=${PKGLIST_REDOS}
     else
       echo "Error: system-dependencies.json not found, unknown package manager"
       return
