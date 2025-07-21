@@ -14,10 +14,10 @@
     "redos": [
       "python3-virtualenv",
       "python3-devel",
-      "liblmdb-devel",
+      "lmdb-devel",
       "openjpeg2",
       "libsodium-devel",
-      "zlib1g-devel",
+      "zlib-devel",
       "libjpeg-turbo-devel",
       "PackageKit",
       "wireless-tools",

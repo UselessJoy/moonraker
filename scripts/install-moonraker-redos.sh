@@ -66,8 +66,8 @@ install_packages()
         PKGS="$( cat ${system_deps} | python3 -c "${package_decode_script}" )"
     else
         echo "Error: system-dependencies.json not found, falling back to legacy pacakge list"
-        PKGLIST="${PKGLIST} python3-virtualenv python3-devel liblmdb-devel"
-        PKGLIST="${PKGLIST} openjpeg2 libsodium-devel zlib1g-devel libjpeg-turbo-devel"
+        PKGLIST="${PKGLIST} python3-virtualenv python3-devel lmdb-devel"
+        PKGLIST="${PKGLIST} openjpeg2 libsodium-devel zlib-devel libjpeg-turbo-devel"
         PKGLIST="${PKGLIST} PackageKit wireless-tools curl"
         PKGS=${PKGLIST}
     fi
