@@ -3,9 +3,15 @@
 
 POLKIT_LEGACY_DIR="/etc/polkit-1/localauthority/50-local.d"
 POLKIT_DIR="/etc/polkit-1/rules.d"
-POLKIT_USR_DIR="/usr/share/polkit-1/rules.d"
 MOONRAKER_UNIT="/etc/systemd/system/moonraker.service"
 MOONRAKER_GID="-1"
+
+verify_polkit() {
+    if ! command -v pkaction &> /dev/null; then
+        echo "PolicyKit not installed"
+        exit 1
+    fi
+}
 
 check_moonraker_service()
 {
@@ -24,68 +30,38 @@ check_moonraker_service()
 add_polkit_legacy_rules()
 {
     RULE_FILE="${POLKIT_LEGACY_DIR}/10-moonraker.pkla"
-    report_status "Installing Moonraker PolicyKit Rules (Legacy) to ${RULE_FILE}..."
-    ACTIONS="org.freedesktop.systemd1.manage-units"
-    ACTIONS="${ACTIONS};org.freedesktop.login1.power-off"
-    ACTIONS="${ACTIONS};org.freedesktop.login1.power-off-multiple-sessions"
-    ACTIONS="${ACTIONS};org.freedesktop.login1.reboot"
-    ACTIONS="${ACTIONS};org.freedesktop.login1.reboot-multiple-sessions"
-    ACTIONS="${ACTIONS};org.freedesktop.login1.halt"
-    ACTIONS="${ACTIONS};org.freedesktop.login1.halt-multiple-sessions"
-    ACTIONS="${ACTIONS};org.freedesktop.timedate1.set-time"
-    ACTIONS="${ACTIONS};org.freedesktop.packagekit.*"
-    sudo /bin/sh -c "cat > ${RULE_FILE}" << EOF
+    echo "Установка legacy-правил PolicyKit в ${RULE_FILE}..."
+    
+    sudo mkdir -p "$POLKIT_LEGACY_DIR"
+    sudo tee "$RULE_FILE" > /dev/null <<EOF
 [moonraker permissions]
 Identity=unix-user:$USER
-Action=$ACTIONS
+Action=org.freedesktop.systemd1.manage-units;org.freedesktop.login1.power-off;org.freedesktop.login1.power-off-multiple-sessions;org.freedesktop.login1.reboot;org.freedesktop.login1.reboot-multiple-sessions;org.freedesktop.timedate1.set-time;org.freedesktop.packagekit.*
 ResultAny=yes
 EOF
 }
 
 add_polkit_rules()
 {
-    if [ ! -x "$(command -v pkaction)" ]; then
-        echo "PolicyKit not installed"
-        exit 1
-    fi
-    POLKIT_VERSION="$( pkaction --version | grep -Po "(\d+\.?\d*)" )"
-    report_status "PolicyKit Version ${POLKIT_VERSION} Detected"
-    if [ "$POLKIT_VERSION" = "0.105" ]; then
-        # install legacy pkla file
-        add_polkit_legacy_rules
-        return
-    fi
-    RULE_FILE=""
-    if [ -d $POLKIT_USR_DIR ]; then
-        RULE_FILE="${POLKIT_USR_DIR}/moonraker.rules"
-    elif [ -d $POLKIT_DIR ]; then
-        RULE_FILE="${POLKIT_DIR}/moonraker.rules"
-    else
-        echo "PolicyKit rules folder not detected"
-        exit 1
-    fi
-    report_status "Installing PolicyKit Rules to ${RULE_FILE}..."
-    MOONRAKER_GID=$( getent group moonraker-admin | awk -F: '{printf "%d", $3}' )
-    sudo /bin/sh -c "cat > ${RULE_FILE}" << EOF
-// Allow Moonraker User to manage systemd units, reboot and shutdown
-// the system
+    RULE_FILE="${POLKIT_DIR}/10-moonraker.rules"
+    MOONRAKER_GID=$(getent group moonraker-admin | awk -F: '{printf "%d", $3}')
+    sudo mkdir -p "$POLKIT_DIR"
+    sudo tee "$RULE_FILE" > /dev/null <<EOF
 polkit.addRule(function(action, subject) {
     if ((action.id == "org.freedesktop.systemd1.manage-units" ||
          action.id == "org.freedesktop.login1.power-off" ||
          action.id == "org.freedesktop.login1.power-off-multiple-sessions" ||
          action.id == "org.freedesktop.login1.reboot" ||
          action.id == "org.freedesktop.login1.reboot-multiple-sessions" ||
-         action.id == "org.freedesktop.login1.halt" ||
-         action.id == "org.freedesktop.login1.halt-multiple-sessions" ||
-         action.id == "org.freedesktop.timedate1.set-time"
+         action.id == "org.freedesktop.timedate1.set-time" ||
          action.id.startsWith("org.freedesktop.packagekit.")) &&
         subject.user == "$USER") {
-        // Only allow processes with the "moonraker-admin" supplementary group
-        // access
-        var regex = "^Groups:.+?\\\s$MOONRAKER_GID[\\\s\\\0]";
+        
+        // Проверка принадлежности к группе moonraker-admin
+        var regex = "^Groups:.+?\\\\s$MOONRAKER_GID[\\\\s\\\\0]";
         var cmdpath = "/proc/" + subject.pid.toString() + "/status";
         try {
-            polkit.spawn(["grep", "-Po", regex, cmdpath]);
+            polkit.spawn(["grep", "-Pq", regex, cmdpath]);
             return polkit.Result.YES;
         } catch (error) {
             return polkit.Result.NOT_HANDLED;
@@ -96,37 +72,36 @@ EOF
 }
 
 create_dispatcher_rule() {
-  DISPATHER_DIR="/etc/NetworkManager/dispatcher.d/"
-  DISPATHER_RULE="${DISPATHER_DIR}/wlan-metric"
-  if [ -f $DISPATHER_RULE ]; then
-    report_status "rule already exist"
-  else
-  sudo /bin/sh -c "cat > ${DISPATHER_RULE}" << EOF 
+    DISPATCHER_DIR="/etc/NetworkManager/dispatcher.d"
+    DISPATCHER_RULE="${DISPATCHER_DIR}/wlan-metric"
+    
+    if [ ! -f "$DISPATCHER_RULE" ]; then
+        echo "Создание правила NetworkManager..."
+        sudo tee "$DISPATCHER_RULE" > /dev/null <<'EOF'
 #!/bin/sh
-#Change the metric of the default route only on interface wlan0
-if [ "\$1" = "wlan0" ]; then
-        case "\$2" in
-        up)
-                echo "now connection id is \$CONNECTION_ID"
-                nmcli connection modify \$CONNECTION_ID ipv4.route-metric 50
-                echo "successfully set metric for wifi-connection";;
-        esac
+if [ "$1" = "wlan0" ] && [ "$2" = "up" ]; then
+    nmcli connection modify "$CONNECTION_ID" ipv4.route-metric 50
 fi
 EOF
-
-  sudo chmod 755 $DISPATHER_RULE
-  fi
+        sudo chmod 755 "$DISPATCHER_RULE"
+    fi
 }
 
-
-
-
-clear_polkit_rules()
-{
-    report_status "Removing all Moonraker PolicyKit rules"
+clear_polkit_rules() {
+    echo "Удаление старых правил Moonraker..."
     sudo rm -f "${POLKIT_LEGACY_DIR}/10-moonraker.pkla"
-    sudo rm -f "${POLKIT_USR_DIR}/moonraker.rules"
-    sudo rm -f "${POLKIT_DIR}/moonraker.rules"
+    sudo rm -f "${POLKIT_DIR}/90-moonraker.rules"
+}
+
+verify_ready() {
+    if [ "$EUID" -eq 0 ]; then
+        echo "Скрипт не должен запускаться от root!"
+        exit 1
+    fi
+}
+
+get_polkit_version() {
+    pkaction --version | awk '{print $NF}' | cut -d. -f1-2
 }
 
 # Helper functions
@@ -146,7 +121,7 @@ verify_ready()
 CLEAR="n"
 ROOT="n"
 DISABLE_SYSTEMCTL="n"
-
+verify_polkit
 # Parse command line arguments
 while :; do
     case $1 in
@@ -175,7 +150,12 @@ if [ "$CLEAR" = "y" ]; then
 else
     set -e
     check_moonraker_service
-    add_polkit_rules
+    POLKIT_VERSION=$(get_polkit_version)
+    if awk "BEGIN {exit !($POLKIT_VERSION < 0.106)}"; then
+        add_polkit_legacy_rules
+    else
+        add_polkit_rules
+    fi
     create_dispatcher_rule
     if [ $DISABLE_SYSTEMCTL = "n" ]; then
         report_status "Restarting Moonraker..."
