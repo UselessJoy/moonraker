@@ -71,6 +71,19 @@ polkit.addRule(function(action, subject) {
 EOF
 }
 
+add_ap_rules()
+{
+    RULE_FILE="${POLKIT_DIR}/5-access-point.rules"
+    sudo mkdir -p "$POLKIT_DIR"
+    sudo tee "$RULE_FILE" > /dev/null <<EOF
+polkit.addRule(function(action, subject) {
+    if ((action.id.indexOf == "org.freedesktop.NetworkManager." == 0 && subject.user == "$USER")) {
+        return polkit.Result.YES;
+    }
+}); 
+EOF
+}
+
 create_dispatcher_rule() {
     DISPATCHER_DIR="/etc/NetworkManager/dispatcher.d"
     DISPATCHER_RULE="${DISPATCHER_DIR}/wlan-metric"
@@ -154,6 +167,7 @@ else
     if awk "BEGIN {exit !($POLKIT_VERSION < 0.106)}"; then
         add_polkit_legacy_rules
     else
+        add_ap_rules
         add_polkit_rules
     fi
     create_dispatcher_rule

@@ -59,6 +59,7 @@ class Timelapse:
         self.database: DBComp = self.server.lookup_component("database")
         file_manager: FMComp = self.server.lookup_component('file_manager')
         if os.path.isdir(str(file_manager.datapath.joinpath('mmcblk0p1'))):
+          # file_manager.datapath - /home/$USER/printer_data
           parent_dir = str(file_manager.datapath.joinpath('mmcblk0p1'))
         else:
           parent_dir = "/tmp"
