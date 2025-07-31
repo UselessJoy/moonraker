@@ -77,7 +77,7 @@ add_ap_rules()
     sudo mkdir -p "$POLKIT_DIR"
     sudo tee "$RULE_FILE" > /dev/null <<EOF
 polkit.addRule(function(action, subject) {
-    if ((action.id.indexOf == "org.freedesktop.NetworkManager." == 0 && subject.user == "$USER")) {
+    if (action.id.indexOf("org.freedesktop.NetworkManager.") === 0 && subject.user === "$USER") {
         return polkit.Result.YES;
     }
 }); 
