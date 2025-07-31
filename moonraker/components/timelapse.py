@@ -270,10 +270,10 @@ class Timelapse:
 
         if not self.config['snapshoturl'].startswith('http'):
             if not self.config['snapshoturl'].startswith('/'):
-                self.config['snapshoturl'] = "http://localhost/" + \
+                self.config['snapshoturl'] = "http://localhost:8080/" + \
                                              self.config['snapshoturl']
             else:
-                self.config['snapshoturl'] = "http://localhost" + \
+                self.config['snapshoturl'] = "http://localhost:8080" + \
                                              self.config['snapshoturl']
 
         # check if settings have changed and if so creat log entry
