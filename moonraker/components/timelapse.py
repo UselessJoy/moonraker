@@ -499,6 +499,8 @@ class Timelapse:
                 'status': 'success'
             })
           self.notify_event(result)
+      else:
+          self.notify_event({'action': 'newframe', 'status': 'no_frames'})
            
     async def newframe(self) -> None:
         # make sure webcamconfig is uptodate before grabbing a new frame

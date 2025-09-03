@@ -54,18 +54,10 @@ polkit.addRule(function(action, subject) {
          action.id == "org.freedesktop.login1.reboot" ||
          action.id == "org.freedesktop.login1.reboot-multiple-sessions" ||
          action.id == "org.freedesktop.timedate1.set-time" ||
+         action.id == "org.freedesktop.systemd1.manage-unit-files" ||
          action.id.startsWith("org.freedesktop.packagekit.")) &&
         subject.user == "$USER") {
-        
-        // Проверка принадлежности к группе moonraker-admin
-        var regex = "^Groups:.+?\\\\s$MOONRAKER_GID[\\\\s\\\\0]";
-        var cmdpath = "/proc/" + subject.pid.toString() + "/status";
-        try {
-            polkit.spawn(["grep", "-Pq", regex, cmdpath]);
-            return polkit.Result.YES;
-        } catch (error) {
-            return polkit.Result.NOT_HANDLED;
-        }
+          return polkit.Result.YES;
     }
 });
 EOF
