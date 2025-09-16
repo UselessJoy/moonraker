@@ -54,8 +54,8 @@ cleanup_legacy() {
 install_packages()
 {
     # Update system package info
-    report_status "Running dnf update..."
-    sudo dnf update
+    # report_status "Running dnf update..."
+    # sudo dnf update
 
     system_deps="${SRCDIR}/scripts/system-dependencies.json"
     if [ -f "${system_deps}" ]; then
