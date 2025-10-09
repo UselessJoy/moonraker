@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 import re
+import socket
 import time
 import asyncio
 import pathlib
@@ -40,7 +41,7 @@ AsyncHTTPClient.configure(
 )
 
 GITHUB_PREFIX = "https://api.github.com/"
-
+NETWORK_ERRORS = (socket.gaierror, socket.herror, ConnectionError, TimeoutError)
 class HttpClient:
     def __init__(self, config: ConfigHelper) -> None:
         self.server = config.get_server()
@@ -107,6 +108,8 @@ class HttpClient:
                               request_timeout=request_timeout,
                               connect_timeout=connect_timeout)
         err: Optional[BaseException] = None
+        is_network_error = False
+        
         for i in range(attempts):
             if i:
                 await asyncio.sleep(retry_pause_time)
@@ -115,8 +118,15 @@ class HttpClient:
                 resp = await asyncio.wait_for(fut, timeout)
             except asyncio.CancelledError:
                 raise
+            except NETWORK_ERRORS as e:
+                # Специфическая обработка сетевых ошибок
+                err = e
+                is_network_error = True
+                logging.info(f"Network error for {url}: {e}")
+                continue  # Продолжаем попытки для сетевых ошибок
             except Exception as e:
                 err = e
+                logging.warning(f"Unexpected error for {url}: {e}")
             else:
                 err = resp.error
                 if resp.code == 304:
@@ -140,7 +150,11 @@ class HttpClient:
                 )
                 break
         else:
+            # Все попытки исчерпаны
+            if is_network_error:
+                logging.info(f"All attempts failed due to network errors for {url}")
             ret = HttpResponse(url, url, 500, b"", HTTPHeaders(), err)
+        
         if enable_cache and ret.is_cachable():
             logging.debug(f"Caching HTTP Response: {url}")
             self.response_cache[cache_key] = ret
@@ -192,9 +206,16 @@ class HttpClient:
                     f"Limit Reset Time: {reset_time}"
                 )
         headers = {"Accept": "application/vnd.github.v3+json"}
-        resp = await self.get(
-            url, headers, attempts=attempts,
-            retry_pause_time=retry_pause_time)
+        
+        try:
+            resp = await self.get(
+                url, headers, attempts=attempts,
+                retry_pause_time=retry_pause_time)
+        except NETWORK_ERRORS as e:
+            logging.info(f"Network error accessing GitHub API {url}: {e}")
+            # Возвращаем специальный HttpResponse для сетевых ошибок
+            return HttpResponse(url, url, 0, b"", HTTPHeaders(), e)
+        
         resp_hdrs = resp.headers
         if 'X-Ratelimit-Limit' in resp_hdrs:
             self.gh_rate_limit = int(resp_hdrs['X-Ratelimit-Limit'])

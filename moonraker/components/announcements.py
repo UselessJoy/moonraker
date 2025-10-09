@@ -40,7 +40,7 @@ class Announcements:
             self._handle_update_timer
         )
         self.request_lock = asyncio.Lock()
-        self.dev_mode = config.getboolean("dev_mode", False)
+        self.dev_mode = config.getboolean("dev_mode", True)
         self.subscriptions: Dict[str, RssFeed] = {
             "moonraker": RssFeed("moonraker", self.entry_mgr, self.dev_mode),
             "klipper": RssFeed("klipper", self.entry_mgr, self.dev_mode)

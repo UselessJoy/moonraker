@@ -180,7 +180,7 @@ class Server:
 
         # Perform asynchronous init after the event loop starts
         optional_comps: List[Coroutine] = []
-        for name, component in self.components.items():
+        for name, component in list(self.components.items()):
             if not hasattr(component, "component_init"):
                 continue
             if name in CORE_COMPONENTS:
