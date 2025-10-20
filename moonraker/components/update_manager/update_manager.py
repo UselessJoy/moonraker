@@ -732,15 +732,15 @@ class CommandHelper:
         self, progress: int, download_size: int, downloaded: int
     ) -> None:
         totals = (
-            _("%s KiB / "
-              "%s KiB") % (downloaded // 1024, download_size // 1024)
+            _("%d KiB / "
+              "%d KiB") % (downloaded // 1024, download_size // 1024)
         )
         # totals = (
         #     f"{downloaded // 1024} KiB / "
         #     f"{download_size // 1024} KiB"
         # )
         self.notify_update_response(
-            _("Downloading %s: %s [%s%]") % (self.cur_update_app, totals, progress))
+            _("Downloading %s: %s [%d%]") % (self.cur_update_app, totals, progress))
         # self.notify_update_response(
         #     f"Downloading {self.cur_update_app}: {totals} [{progress}%]")
 
