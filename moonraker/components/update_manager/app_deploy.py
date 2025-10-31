@@ -94,6 +94,7 @@ class AppDeploy(BaseDeploy):
         self.python_reqs: Optional[pathlib.Path] = None
         self.install_script: Optional[pathlib.Path] = None
         self.system_deps_json: Optional[pathlib.Path] = None
+        self.systemd_script: Optional[pathlib.Path] = None
         self.info_tags: List[str] = config.getlist("info_tags", [])
         self.managed_services: List[str] = []
 
@@ -178,6 +179,17 @@ class AppDeploy(BaseDeploy):
             if install_script is not None:
                 self.install_script = self.path.joinpath(install_script).resolve()
                 self._verify_path(config, 'install_script', self.install_script)
+
+    def _configure_systemd_service(self, config: ConfigHelper) -> None:
+        systemd_script = f"scripts/install_systemd_service.sh"
+        if config.has_option("systemd_script"):
+            systemd_script = pathlib.Path(config.get("systemd_script")).expanduser()
+        self.systemd_script = self.path.joinpath(systemd_script).resolve()
+        try:
+          self._verify_path(config, 'systemd_script', self.systemd_script, check_exe=True)
+        except Exception as e:
+            logging.error(e)
+            self.systemd_script = None
 
     def _configure_managed_services(self, config: ConfigHelper) -> None:
         svc_default = []
@@ -514,3 +526,22 @@ class AppDeploy(BaseDeploy):
                     )
                 except Exception:
                     self.notify_status("Node Package Update failed")
+    
+    async def _update_systemd_service(self) -> None:
+      if not self.systemd_script:
+          # Пробуем повторно проверить наличие скрипта после основного обновления
+          self._configure_systemd_service(self.config)
+          if not self.systemd_script:
+            return
+      self.notify_status(_("Updating systemd service..."))
+      try:
+          await self.cmd_helper.run_cmd(
+              f"bash {self.systemd_script}",
+              timeout=30.,
+              cwd=str(self.path),
+              notify=True
+          )
+          self.notify_status(_("Systemd service updated successfully"))
+      except Exception as e:
+          self.log_info(f"Failed to update systemd service: {e}")
+        

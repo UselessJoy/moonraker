@@ -310,7 +310,7 @@ class Server:
                 if self.try_pip_recovery(e.name or "unknown"):
                     return self.load_component(config, component_name, default)
             msg = f"Unable to load component: ({component_name})"
-            logging.error(msg)
+            logging.error(f"{msg}\nDetails:{e}")
             if component_name not in self.failed_components:
                 self.failed_components.append(component_name)
             if default is Sentinel.MISSING:
