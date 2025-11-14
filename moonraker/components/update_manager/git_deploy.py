@@ -1209,10 +1209,10 @@ class GitRepo:
             shell_cmd = self.cmd_helper.get_shell_command()
             await shell_cmd.exec_cmd(
                 "find .git/objects/ -type f -empty | xargs rm",
-                timeout=10., attempts=1, cwd=str(self.src_path))
+                timeout=100., attempts=1, cwd=str(self.src_path))
             await self._run_git_cmd_async(
                 "fetch --all -p", attempts=1, fix_loose=False)
-            await self._run_git_cmd("fsck --full", timeout=100., attempts=1)
+            await self._run_git_cmd("fsck --full", timeout=3600., attempts=1)
         except Exception:
             msg = (
                 _("Attempt to repair loose objects failed, "
