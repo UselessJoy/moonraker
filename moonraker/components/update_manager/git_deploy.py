@@ -1279,7 +1279,7 @@ class GitRepo:
             attempts -= 1
             await asyncio.sleep(.5)
             await self._check_lock_file_exists(remove=True)
-        raise self.server.error(_("Git Command '%s' failed"))
+        raise self.server.error(_("Git Command '%s' failed") % cmd)
         # raise self.server.error(f"Git Command '{cmd}' failed")
 
     def _handle_process_output(self, output: bytes) -> None:
