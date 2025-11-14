@@ -1229,7 +1229,7 @@ class GitRepo:
 
     async def _run_git_cmd_async(self,
                                  cmd: str,
-                                 attempts: int = 2,
+                                 attempts: int = 5,
                                  need_git_path: bool = True,
                                  fix_loose: bool = True
                                  ) -> None:
