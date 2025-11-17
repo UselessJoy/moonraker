@@ -178,6 +178,7 @@ class GitDeploy(AppDeploy):
                 )
                 await self.repo.reset()
             else:
+                await self.repo.clean()
                 await self.repo.pull()
         except Exception as e:
             if self.repo.repo_corrupt:
@@ -190,7 +191,6 @@ class GitDeploy(AppDeploy):
             raise self.log_exc(str(e))
         else:
             self.repo.set_rollback_state(rb_state)
-
 
 GIT_ASYNC_TIMEOUT = 100.
 GIT_ENV_VARS = {
@@ -238,15 +238,6 @@ class GitRepo:
                                   "rm -rf %s"
                                   "git clone %s"
                                   "sudo service %s start") % (self.alias, git_dir, git_base, self.origin_url, self.alias)
-        # self.recovery_message = \
-        #     f"""
-        #     Manually restore via SSH with the following commands:
-        #     sudo service {self.alias} stop
-        #     cd {git_dir}
-        #     rm -rf {git_base}
-        #     git clone {self.origin_url}
-        #     sudo service {self.alias} start
-        #     """
         self.repo_warnings: List[str] = []
         self.repo_anomalies: List[str] = []
         self.init_evt: Optional[asyncio.Event] = None
@@ -505,7 +496,6 @@ class GitRepo:
                 else:
                     prev = f"{self.git_remote}/{self.git_branch}"
                     msg = _("Defaulting to previously tracked %s.") % prev
-                    # msg = f"Defaulting to previously tracked {prev}."
                 logging.info(f"Git Repo {self.alias}: {current_branch} {msg}")
         else:
             self.head_detached = False
@@ -559,11 +549,6 @@ class GitRepo:
                             "not match configured 'moved_origin'option. "
                             "Expected: %s") % (self.alias, detected_origin)
                         )
-                        # self.server.add_warning(
-                        #     f"Git Repo {self.alias}: Origin URL does not "
-                        #     "not match configured 'moved_origin'option. "
-                        #     f"Expected: {detected_origin}"
-                        # )
         else:
             logging.debug(f"Move Request Failed: {resp.error}")
         return moved
@@ -834,9 +819,6 @@ class GitRepo:
             raise self.server.error(
                 _("Git Repo %s: Cannot perform pull on a "
                 "detached HEAD") % self.alias)
-            # raise self.server.error(
-            #     f"Git Repo {self.alias}: Cannot perform pull on a "
-            #     "detached HEAD")
         cmd = "pull --progress"
         if self.server.is_debug_enabled():
             cmd = f"{cmd} --rebase"

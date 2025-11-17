@@ -133,7 +133,6 @@ class Timelapse:
         # this is a fallback to older setups and when the Frontend doesn't
         # support the settings endpoint
         self.overwriteDbconfigWithConfighelper()
-        #Да, тупая перезапись, иначе заебешься выдумывать, как это поправить на всех машинах
         self.config['time_format_code'] = "%Y%m%d_%H%M%S"
         # check if ffmpeg is installed
         self.ffmpeg_installed = os.path.isfile(self.ffmpeg_binary_path)
@@ -373,7 +372,6 @@ class Timelapse:
             if gcodechange:
                 ioloop = IOLoop.current()
                 ioloop.spawn_callback(self.setgcodevariables)
-        #Чтобы set можно было спокойно перехватить через KS
         result = {'action': 'settings'}
         result.update(self.config)
         self.notify_event(result)
