@@ -142,6 +142,12 @@ class KlippyAPI(APITransport):
             "/printer/heaters/test_temperature", RequestType.POST, self._test_heating)
         self.server.register_endpoint(
             "/printer/magnet_probe/test_magnet_probe", RequestType.POST, self._test_magnet_probe)
+        
+        self.server.register_endpoint(
+            "/printer/serial/get_serial", RequestType.GET, self._get_serial_number)
+        self.server.register_endpoint(
+            "/printer/serial/set_serial", RequestType.POST, self._set_serial_number)
+
         ####    END NEW    ####
     def _on_klippy_disconnect(self) -> None:
             self.host_subscription.clear()
@@ -317,6 +323,14 @@ class KlippyAPI(APITransport):
     async def do_test_magent_probe(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "magnet_probe/test_magnet_probe", {}, default)
+
+    async def _get_serial_number(self, web_request: WebRequest, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "serial/get_serial", {}, default)
+
+    async def _set_serial_number(self, web_request: WebRequest, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
+        return await self._send_klippy_request(
+            "serial/set_serial", {"serial_number": web_request.get_str('serial_number')}, default)
 
     async def do_rebuild(
         self, gc: str, wait_klippy_started: bool = False

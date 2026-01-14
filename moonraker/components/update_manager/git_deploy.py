@@ -49,10 +49,6 @@ class GitDeploy(AppDeploy):
                     _("[%s]: Value for option 'commit' must be "
                     "a minimum of 8 characters.") % (config.get_name())
                 )
-                # raise config.error(
-                #         f"[{config.get_name()}]: Value for option 'commit' must be "
-                #         "a minimum of 8 characters."
-                #     )
         self.repo = GitRepo(
             cmd_helper, self.path, self.name, self.origin, self.moved_origin,
             self.primary_branch, self.channel, pinned_commit
@@ -640,9 +636,6 @@ class GitRepo:
             if not self.initialized:
                 raise self.server.error(
                     _("Git Repo %s: Initialization failure") % self.alias)
-                # raise self.server.error(
-                #     f"Git Repo {self.alias}: Initialization failure")
-
     async def is_ancestor(
         self, ancestor_ref: str, descendent_ref: str, attempts: int = 2
     ) -> bool:
@@ -705,9 +698,6 @@ class GitRepo:
             self.repo_anomalies.append(
                 _("Pinned Commit %s does not exist") % self.pinned_commit
             )
-            # self.repo_anomalies.append(
-            #     f"Pinned Commit {self.pinned_commit} does not exist"
-            # )
         if self.repo_corrupt:
             self.repo_warnings.append(_("Repo is corrupt"))
         if self.git_branch == "?":
@@ -716,9 +706,6 @@ class GitRepo:
             self.repo_warnings.append(
                 _("Failed to detect tracking remote for branch %s") % self.git_branch
             )
-            # self.repo_warnings.append(
-            #     f"Failed to detect tracking remote for branch {self.git_branch}"
-            # )
         if self.upstream_url == "?":
             self.repo_warnings.append(_("Failed to detect repo url"))
             return
@@ -727,23 +714,15 @@ class GitRepo:
             upstream_url += ".git"
         if upstream_url != self.origin_url.lower():
             self.repo_anomalies.append(_("Unofficial remote url: %s.\nOfficial url is: %s") % (self.upstream_url, self.origin_url))
-            # self.repo_anomalies.append(f"Unofficial remote url: {self.upstream_url}.\nOfficial url is: {self.origin_url}")
         if self.git_branch != self.primary_branch or self.git_remote != "origin":
             self.repo_anomalies.append(
                 _("Repo not on offical remote/branch, expected: "
                   "origin/%s, detected: "
                   "%s/%s") % (self.primary_branch, self.git_remote, self.git_branch))
-            # self.repo_anomalies.append(
-            #     "Repo not on offical remote/branch, expected: "
-            #     f"origin/{self.primary_branch}, detected: "
-            #     f"{self.git_remote}/{self.git_branch}")
         if self.untracked_files:
             self.repo_anomalies.append(
                 _("Repo has untracked source files: %s") % self.untracked_files
             )
-            # self.repo_anomalies.append(
-            #     f"Repo has untracked source files: {self.untracked_files}"
-            # )
         if self.diverged:
             self.repo_anomalies.append(_("Repo has diverged from remote"))
         if self.head_detached:
@@ -757,19 +736,13 @@ class GitRepo:
                 _("Repo is dirty.  Detected the following modifed files: "
                   "%s") % self.modified_files
             )
-            # self.repo_warnings.append(
-            #     "Repo is dirty.  Detected the following modifed files: "
-            #     f"{self.modified_files}"
-            # )
         self._generate_warn_msg()
 
     def _generate_warn_msg(self) -> str:
         ro_msg = _("Git Repo %s: No warnings detected") % self.alias
-        # ro_msg = f"Git Repo {self.alias}: No warnings detected"
         warn_msg = ""
         if self.repo_warnings or self.repo_anomalies:
             ro_msg = _("Git Repo %s: Warnings detected:\n") % self.alias
-            # ro_msg = f"Git Repo {self.alias}: Warnings detected:\n"
             warn_msg = "\n".join(
                 [f"  {warn}" for warn in self.repo_warnings + self.repo_anomalies]
             )
@@ -781,14 +754,10 @@ class GitRepo:
         if not self.valid_git_repo:
             raise self.server.error(
                 _("Git Repo %s: repo not initialized") % self.alias)
-            # raise self.server.error(
-            #     f"Git Repo {self.alias}: repo not initialized")
         if check_remote:
             if self.git_remote == "?":
                 raise self.server.error(
                     _("Git Repo %s: No valid git remote detected") % self.alias)
-                # raise self.server.error(
-                #     f"Git Repo {self.alias}: No valid git remote detected")
 
     async def reset(self, ref: Optional[str] = None) -> None:
         async with self.git_operation_lock:
@@ -938,16 +907,12 @@ class GitRepo:
                 _("Cannot clone git repo %s, it is a %s "
                 "of another git repo.") % (self.alias, self.get_repo_type())
             )
-            # raise self.server.error(
-            #     f"Cannot clone git repo {self.alias}, it is a {self.get_repo_type()} "
-            #     "of another git repo."
-            # )
         async with self.git_operation_lock:
             if self.recovery_url == "?":
                 raise self.server.error(
                     _("Recovery url has not been detected, clone aborted")
                 )
-            self.cmd_helper.notify_update_response(_("Git Repo %s: Starting Clone Recovery...") % self.alias) #f"Git Repo {self.alias}: Starting Clone Recovery..."
+            self.cmd_helper.notify_update_response(_("Git Repo %s: Starting Clone Recovery...") % self.alias)
             event_loop = self.server.get_event_loop()
             if self.backup_path.exists():
                 await event_loop.run_in_thread(shutil.rmtree, self.backup_path)
@@ -959,7 +924,7 @@ class GitRepo:
             try:
                 await self._run_git_cmd_async(cmd, 1, False, False)
             except Exception as e:
-                self.cmd_helper.notify_update_response(_("Git Repo %s: Git Clone Failed") % self.alias)#f"Git Repo {self.alias}: Git Clone Failed"
+                self.cmd_helper.notify_update_response(_("Git Repo %s: Git Clone Failed") % self.alias)
                 raise self.server.error(_("Git Clone Error")) from e
             if self.src_path.exists():
                 await event_loop.run_in_thread(shutil.rmtree, self.src_path)
@@ -967,17 +932,13 @@ class GitRepo:
                 shutil.move, str(self.backup_path), str(self.src_path))
             self.repo_corrupt = False
             self.valid_git_repo = True
-            self.cmd_helper.notify_update_response(_("Git Repo %s: Git Clone Complete") % self.alias)#f"Git Repo {self.alias}: Git Clone Complete"
+            self.cmd_helper.notify_update_response(_("Git Repo %s: Git Clone Complete") % self.alias)
         reset_commit = await self.get_recovery_ref("HEAD")
         if reset_commit != "HEAD":
             self.cmd_helper.notify_update_response(
                 _("Git Repo %s: Moving HEAD to previous "
                   "commit %s") % (self.alias, self.current_commit)
             )
-            # self.cmd_helper.notify_update_response(
-            #     f"Git Repo {self.alias}: Moving HEAD to previous "
-            #     f"commit {self.current_commit}"
-            # )
             await self.reset(reset_commit)
 
     async def rollback(self) -> bool:
@@ -1137,9 +1098,6 @@ class GitRepo:
                 raise self.server.error(
                     _("Failed to find remote for primary branch '%s'") % self.primary_branch
                 )
-                # raise self.server.error(
-                #     f"Failed to find remote for primary branch '{self.primary_branch}'"
-                # )
             upstream_ref = f"{remote}/{self.primary_branch}"
         reset_commits: List[str] = []
         if self.pinned_commit is not None:
@@ -1262,7 +1220,6 @@ class GitRepo:
             await asyncio.sleep(.5)
             await self._check_lock_file_exists(remove=True)
         raise self.server.error(_("Git Command '%s' failed") % cmd)
-        # raise self.server.error(f"Git Command '{cmd}' failed")
 
     def _handle_process_output(self, output: bytes) -> None:
         self.fetch_input_recd = True

@@ -108,7 +108,7 @@ class BaseDeploy:
 
     def notify_status(self, msg: str, is_complete: bool = False) -> None:
         log_msg = f"{self.prefix}{msg}"
-        logging.debug(log_msg)
+        logging.info(log_msg)
         self.cmd_helper.notify_update_response(log_msg, is_complete)
 
     def close(self) -> Optional[Coroutine]:

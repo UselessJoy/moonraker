@@ -128,6 +128,12 @@ class UpdateManager:
                 continue
             try:
                 client_type = cfg.get("type")
+                # if cfg.get("type") == "web":
+                #     if cfg.get("repo").find("UselessJoy") != -1:
+                #         cfg.set_option("repo", f"gelios/{name}")
+                # elif cfg.get("type") == "git_repo":
+                #     if cfg.get("origin").find("UselessJoy") != -1:
+                #         cfg.set_option("origin", f"https://git.goz.ru/gelios/{name}.git")
                 deployer = get_deploy_class(client_type, None)
                 if deployer is None:
                     self.server.add_warning(

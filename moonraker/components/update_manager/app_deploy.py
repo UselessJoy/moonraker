@@ -168,6 +168,7 @@ class AppDeploy(BaseDeploy):
         if self.py_exec is not None:
             self.python_reqs = self.path.joinpath(config.get("requirements"))
             self._verify_path(config, 'requirements', self.python_reqs)
+            # logging.info(f"python requests for {config.get_name()}: {self.python_reqs}")
         deps = config.get("system_dependencies", None)
         if deps is not None:
             self.system_deps_json = self.path.joinpath(deps).resolve()
@@ -179,6 +180,7 @@ class AppDeploy(BaseDeploy):
             if install_script is not None:
                 self.install_script = self.path.joinpath(install_script).resolve()
                 self._verify_path(config, 'install_script', self.install_script)
+        # logging.info(f"deps for {config.get_name()}: {deps}")
 
     def _configure_systemd_service(self, config: ConfigHelper) -> None:
         systemd_script = f"scripts/install_systemd_service.sh"
@@ -188,7 +190,7 @@ class AppDeploy(BaseDeploy):
         try:
           self._verify_path(config, 'systemd_script', self.systemd_script, check_exe=True)
         except Exception as e:
-            logging.error(e)
+            # logging.error(e)
             self.systemd_script = None
 
     def _configure_managed_services(self, config: ConfigHelper) -> None:
@@ -496,7 +498,7 @@ class AppDeploy(BaseDeploy):
     ) -> None:
         packages = await self._read_system_dependencies()
         modules = await self._read_python_reqs()
-        logging.debug(
+        logging.info(
             f"\nApplication {self.name}: Post-update dependencies:\n"
             f"Packages: {packages}\n"
             f"Python Requirements: {modules}"
@@ -504,7 +506,7 @@ class AppDeploy(BaseDeploy):
         if not force:
             packages = list(set(packages) - set(dep_info["system_packages"]))
             modules = list(set(modules) - set(dep_info["python_modules"]))
-        logging.debug(
+        logging.info(
             f"\nApplication {self.name}: Dependencies to install:\n"
             f"Packages: {packages}\n"
             f"Python Requirements: {modules}\n"
