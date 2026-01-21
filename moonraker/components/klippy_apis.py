@@ -136,10 +136,8 @@ class KlippyAPI(APITransport):
             "/printer/fixing/repeat_update", RequestType.POST, self._repeat_update)
         
         self.server.register_endpoint(
-            "/printer/fixing/close_dialog", RequestType.POST, self._close_dialog)
-        
-        self.server.register_endpoint(
             "/printer/heaters/test_temperature", RequestType.POST, self._test_heating)
+
         self.server.register_endpoint(
             "/printer/magnet_probe/test_magnet_probe", RequestType.POST, self._test_magnet_probe)
         
@@ -291,12 +289,6 @@ class KlippyAPI(APITransport):
     async def do_repeat_update(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
             "fixing/repeat_update", {}, default)
-
-    async def _close_dialog(self, web_request: WebRequest) -> str:
-        return await self.do_close_dialog()
-    async def do_close_dialog(self, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
-        return await self._send_klippy_request(
-            "fixing/close_dialog", {}, default)
 
     async def _run_async_command(self, web_request: WebRequest) -> str:
         return await self.do_run_async_command(web_request.get_str('command'))
