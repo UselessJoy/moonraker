@@ -844,8 +844,8 @@ class FileManager:
             try:
                 upload_info = self._parse_upload_args(form_args)
                 if self.get_root_usage(upload_info['root'])['disk_usage']['free'] < 50 * 1024 * 1024:
-                    raise self.server.error(
-                          "To few free memory")
+                    logging.info("To few free memory")
+                    raise self.server.error("To few free memory")
                 self.check_reserved_path(upload_info["dest_path"], True)
                 self.sync_lock.setup("create_file", upload_info["dest_path"])
                 root = upload_info['root']
@@ -855,12 +855,12 @@ class FileManager:
                     result = await self._finish_gcode_upload(upload_info)
                 else:
                     result = await self._finish_standard_upload(upload_info)
-            except Exception:
+            except Exception as e:
                 try:
                     os.remove(form_args['tmp_file_path'])
                 except Exception:
                     pass
-                raise
+                raise self.server.error(str(e))
             return result
 
     def _parse_upload_args(self,

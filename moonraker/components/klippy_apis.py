@@ -318,7 +318,7 @@ class KlippyAPI(APITransport):
 
     async def _get_serial_number(self, web_request: WebRequest, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(
-            "serial/get_serial", {}, default)
+            "serial/get_serial", {}, '')
 
     async def _set_serial_number(self, web_request: WebRequest, default: Union[Sentinel, _T] = Sentinel.MISSING) -> str:
         return await self._send_klippy_request(

@@ -458,9 +458,6 @@ class AppDeploy(BaseDeploy):
                 self.notify_status(
                     _("Updating pip from version %s to %s...") % (cur_ver, update_ver)
                 )
-                # self.notify_status(
-                #     f"Updating pip from version {cur_ver} to {update_ver}..."
-                # )
                 await pip_exec.update_pip()
                 self.pip_version = pip_utils.MIN_PIP_VERSION
         except asyncio.CancelledError:
@@ -468,8 +465,6 @@ class AppDeploy(BaseDeploy):
         except Exception as e:
             self.notify_status(_("Pip Version Check Error: %s") % e)
             self.log_exc(_("Pip Version Check Error"))
-            # self.notify_status(f"Pip Version Check Error: {e}")
-            # self.log_exc("Pip Version Check Error")
         self.notify_status(_("Updating python packages..."))
         try:
             await pip_exec.install_packages(requirements, self.pip_env_vars)
