@@ -130,11 +130,6 @@ class AppDeploy(BaseDeploy):
                       "Verify that the 'virtualenv' option is set to a valid "
                       "virtualenv path.") % (config.get_name(), venv_path)
                 )
-                # raise config.error(
-                #     f"[{config.get_name()}]: Invalid virtualenv at path {venv_path}. "
-                #     f"Verify that the 'virtualenv' option is set to a valid "
-                #     "virtualenv path."
-                # )
             self.py_exec = venv_path.joinpath("bin/python")
             if not (self.py_exec.is_file() and os.access(self.py_exec, os.X_OK)):
                 raise config.error(
@@ -142,11 +137,6 @@ class AppDeploy(BaseDeploy):
                       "%s. Verify that the 'virtualenv' option is set "
                       "to a valid virtualenv path.") % (config.get_name(), self.py_exec)
                 )
-                # raise config.error(
-                #     f"[{config.get_name()}]: Invalid python executable at "
-                #     f"{self.py_exec}. Verify that the 'virtualenv' option is set "
-                #     "to a valid virtualenv path."
-                # )
             self.log_info(f"Detected virtualenv: {venv_path}")
             self.virtualenv = venv_path
             pip_exe = self.virtualenv.joinpath("bin/pip")
@@ -168,7 +158,6 @@ class AppDeploy(BaseDeploy):
         if self.py_exec is not None:
             self.python_reqs = self.path.joinpath(config.get("requirements"))
             self._verify_path(config, 'requirements', self.python_reqs)
-            # logging.info(f"python requests for {config.get_name()}: {self.python_reqs}")
         deps = config.get("system_dependencies", None)
         if deps is not None:
             self.system_deps_json = self.path.joinpath(deps).resolve()
@@ -180,7 +169,6 @@ class AppDeploy(BaseDeploy):
             if install_script is not None:
                 self.install_script = self.path.joinpath(install_script).resolve()
                 self._verify_path(config, 'install_script', self.install_script)
-        # logging.info(f"deps for {config.get_name()}: {deps}")
 
     def _configure_systemd_service(self, config: ConfigHelper) -> None:
         systemd_script = f"scripts/install_systemd_service.sh"
@@ -214,14 +202,6 @@ class AppDeploy(BaseDeploy):
                     "set 'is_system_service: False' in the configuration "
                     "for this section.") % (config.get_name(), self.name, self.name, asvc)
                 )
-                # self.server.add_warning(
-                #     f"[{config.get_name()}]: Moonraker is not permitted to "
-                #     f"restart service '{self.name}'.  To enable management "
-                #     f"of this service add {self.name} to the bottom of the "
-                #     f"file {asvc}.  To disable management for this service "
-                #     "set 'is_system_service: False' in the configuration "
-                #     "for this section."
-                # )
                 services.clear()
         for svc in services:
             if svc not in svc_choices:
@@ -231,11 +211,6 @@ class AppDeploy(BaseDeploy):
                     "contains an invalid value '%s'.  All values must be "
                     "one of the following choices: %s") % (config.get_name(), raw, svc, svc_choices)
                 )
-                # self.server.add_warning(
-                #     f"[{config.get_name()}]: Option 'managed_services: {raw}' "
-                #     f"contains an invalid value '{svc}'.  All values must be "
-                #     f"one of the following choices: {svc_choices}"
-                # )
                 break
         for svc in svc_choices:
             if svc in services and svc not in self.managed_services:
@@ -487,26 +462,24 @@ class AppDeploy(BaseDeploy):
             "python_modules": pyreqs,
             "npm_hash": npm_hash
         }
+    async def _deps_to_update(self, dep_info: Dict[str, Any]) -> tuple[list, list]:
+        packages, modules = await self._read_deps()
+        return list(set(packages) - set(dep_info["system_packages"])), list(set(modules) - set(dep_info["python_modules"]))
+
+    async def _read_deps(self) -> tuple[list, list]:
+        packages = await self._read_system_dependencies()
+        modules = await self._read_python_reqs()
+        return packages, modules
 
     async def _update_dependencies(
         self, dep_info: Dict[str, Any], force: bool = False
     ) -> None:
-        packages = await self._read_system_dependencies()
-        modules = await self._read_python_reqs()
-        logging.info(
-            f"\nApplication {self.name}: Post-update dependencies:\n"
-            f"Packages: {packages}\n"
-            f"Python Requirements: {modules}"
-        )
         if not force:
-            packages = list(set(packages) - set(dep_info["system_packages"]))
-            modules = list(set(modules) - set(dep_info["python_modules"]))
-        logging.info(
-            f"\nApplication {self.name}: Dependencies to install:\n"
-            f"Packages: {packages}\n"
-            f"Python Requirements: {modules}\n"
-            f"Force All: {force}"
-        )
+            packages, modules = self._deps_to_update(dep_info)
+        else:
+            packages, modules = await self._read_deps()
+        msg = f"\nApplication {self.name}\nSystem dependencies to install: {packages}\nPython Requirements to install: {modules}"
+        self.notify_status(msg)
         if packages:
             await self._install_packages(packages)
         if modules:

@@ -430,15 +430,23 @@ class FileManager:
         root = web_request.get_str('root', None)
         if not root:
           root = 'gcodes'
-        root_flist = self.get_file_list(root, list_format=True)
-        media_flist = self.get_file_list('media', list_format=True)
+        event_loop = self.server.get_event_loop()
+        root_task = event_loop.run_in_thread(
+            self.get_file_list, root, True
+        )
+        media_task = event_loop.run_in_thread(
+            self.get_file_list, 'media', True
+        )
+        root_flist, media_flist = await asyncio.gather(root_task, media_task)
+        # root_flist = await self.get_file_list(root, list_format=True)
+        # media_flist = await self.get_file_list('media', list_format=True)
         common_list = root_flist + media_flist
         return cast(List[Dict[str, Any]], common_list)
     
     async def _handle_has_media(self,
                                 web_request: WebRequest = None
                                 ) -> bool:
-        flist_media = self.get_file_list("media", list_format=True)
+        flist_media = await self.get_file_list("media", list_format=True)
         return True if len(flist_media) != 0 else False
     
     async def _handle_metadata_request(self,
@@ -1003,7 +1011,7 @@ class FileManager:
                                            upload_info['root'])
         return finfo
 
-    def get_file_list(self,
+    async def get_file_list(self,
                       root: str,
                       list_format: bool = False,
                       ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
@@ -2306,11 +2314,9 @@ class InotifyObserver(BaseFileSystemObserver):
 METADATA_NAMESPACE = "gcode_metadata"
 METADATA_VERSION = 3
 
+
 class MetadataStorage:
-    def __init__(self,
-                 config: ConfigHelper,
-                 db: DBComp
-                 ) -> None:
+    def __init__(self, config: ConfigHelper, db: DBComp) -> None:
         self.server = config.get_server()
         self.enable_object_proc = config.getboolean(
             'enable_object_processing', False)
@@ -2321,20 +2327,37 @@ class MetadataStorage:
         version = db.get_item(
             "moonraker", "file_manager.metadata_version", 0).result()
         if version != METADATA_VERSION:
-            # Clear existing metadata when version is bumped
             self.mddb.clear()
             db.insert_item(
                 "moonraker", "file_manager.metadata_version",
                 METADATA_VERSION)
-        # Keep a local cache of the metadata.  This allows for synchronous
-        # queries.  Metadata is generally under 1KiB per entry, so even at
-        # 1000 gcode files we are using < 1MiB of additional memory.
-        # That said, in the future all components that access metadata should
-        # be refactored to do so asynchronously.
-        self.metadata: Dict[str, Any] = self.mddb.as_dict()
+        self._metadata_cache: Dict[str, Any] = {}
+        self._metadata_loaded = False
+        self._metadata_keys: Set[str] = set()
         self.pending_requests: Dict[
             str, Tuple[Dict[str, Any], asyncio.Event]] = {}
         self.busy: bool = False
+    
+    @property
+    def metadata(self) -> Dict[str, Any]:
+        if not self._metadata_loaded:
+            self._metadata_cache = self.mddb.as_dict()
+            self._metadata_loaded = True
+        return self._metadata_cache
+    
+    def get(self, key: str, default: Optional[_T] = None) -> Union[_T, Dict[str, Any]]:
+        if key in self._metadata_cache:
+            return deepcopy(self._metadata_cache.get(key, default))
+        if not self._metadata_loaded:
+            try:
+                val = self.mddb.get(key, default).result()
+                if val is not None:
+                    self._metadata_cache[key] = val
+                return deepcopy(val)
+            except Exception:
+                return default
+        
+        return deepcopy(self.metadata.get(key, default))
 
     def prune_storage(self) -> None:
         # Check for removed gcode files while moonraker was shutdown

@@ -60,7 +60,7 @@ if TYPE_CHECKING:
 API_VERSION = (1, 4, 0)
 SERVER_COMPONENTS = ['application', 'websockets', 'klippy_connection']
 CORE_COMPONENTS = [
-    'dbus_manager', 'database', 'file_manager', 'authorization',
+    'dbus_manager', 'database', 'authorization', 'file_manager', 'shell_client',
     'klippy_apis', 'machine', 'data_store', 'shell_command',
     'proc_stats', 'job_state', 'job_queue', 'history',
     'http_client', 'announcements', 'webcam', 'extensions'
